@@ -1,13 +1,8 @@
 {
-  /*
-    PEG Grammar for generating the redes grammar parser.
-    The same grammar should be parsable by redes, and should produce the same output as PEG.
-  */
 
 	function indent (t) {
     	return "\n  "+t.replace(/\n/g,'\n  ')+"\n";
     }
-    
 }
 
 grammar
@@ -134,17 +129,17 @@ atom
 / "(" _ or:or _ ")" { return or }
 
 token 
-= [''] c:$("\\'"/[^'])+ [''] i:"i"? { return `$_token(${JSON.stringify(c)},${!!i})`}
-/ [""] c:$('\\"'/[^"])+ [""] i:"i"? { return `$_token(${JSON.stringify(c)},${!!i})`}
+= [''] c:$("\\'"/[^'])+ [''] i:"i"? { 
+  if (i) return `$_itoken('${c.toLowerCase()}')`;
+  else return `$_token('${c}')`;
+}
+/ [""] c:$('\\"'/[^"])+ [""] i:"i"? { return `$_token("${c}",${!!i})`}
 
 char
-= c:$("[" ("\\]"/[^\]])+ "]") i:"i"? { return `$_char(${JSON.stringify(c)},${!!i})`}
+= c:$("[" ("\\]"/[^\]])+ "]") i:"i"? { return `$_char(/${c}/${i||''})`}
 
 dot
 = dot:"." { return `$_dot()`}
-
-regex 
-= [/] c:$("\\/"/[^/])+ [/] i:"i"? { return `$_char(${JSON.stringify(c)},${!!i})`} 
 
 block 
 = "{" _ chunks:block_chunk* _ "}" { return chunks.join('') }

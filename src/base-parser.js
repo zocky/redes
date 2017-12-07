@@ -54,8 +54,17 @@ module.exports = function redes () {
       return this.fail()
     }
   }
+  function $_itoken(chars) {
+  	return function (){ 
+      this.begin();
+      if(this.text.substr(this.pos,chars.length).toLowerCase() == chars) {
+        this.pos+=chars.length;
+        return this.found(chars);
+      }
+      return this.fail()
+    }
+  }
   function $_char(re) {
-  	re = new RegExp(re);
   	return function (){ 
       this.begin();
       if(this.pos>=this.text.length) return this.fail();

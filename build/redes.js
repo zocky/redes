@@ -46,8 +46,17 @@ const redesParser = function redes() {
       return this.fail()
     }
   }
+  function $_itoken(chars) {
+  	return function (){ 
+      this.begin();
+      if(this.text.substr(this.pos,chars.length).toLowerCase() == chars) {
+        this.pos+=chars.length;
+        return this.found(chars);
+      }
+      return this.fail()
+    }
+  }
   function $_char(re) {
-  	re = new RegExp(re);
   	return function (){ 
       this.begin();
       if(this.pos>=this.text.length) return this.fail();
@@ -156,15 +165,10 @@ const redesParser = function redes() {
     }   
   }
 
-/*
-    PEG Grammar for generating the redes grammar parser.
-    The same grammar should be parsable by redes, and should produce the same output as PEG.
-  */
-
-	function indent (t) {
+/*jd1vslklixm-v86rkepd68j*/
+function indent (t) {
     	return "\n  "+t.replace(/\n/g,'\n  ')+"\n";
     }
-    
 
 
   function rule_grammar() {
@@ -209,7 +213,7 @@ const redesParser = function redes() {
       [rule_seq,'head'],
       [$_star($_seq([
         [rule__],
-        [$_char("[|/]",false)],
+        [$_char(/[|/]/)],
         [rule__],
         [rule_seq,'seq']
       ], ({seq}) => {
@@ -401,26 +405,28 @@ const redesParser = function redes() {
   function rule_token() {
     return $_or(
       $_seq([
-        [$_char("['']",false)],
+        [$_char(/['']/)],
         [$_dollar($_plus($_or(
-          $_token("\\\\'",false),
-          $_char("[^']",false)
+          $_token("\\'",false),
+          $_char(/[^']/)
         ))),'c'],
-        [$_char("['']",false)],
+        [$_char(/['']/)],
         [$_maybe($_token("i",false)),'i']
       ], ({c,i}) => {
-      return `$_token(${JSON.stringify(c)},${!!i})`
+      if (i) return `$_itoken('${c.toLowerCase()}')`;
+        else return `$_token('${c}')`;
+      
       }),
       $_seq([
-        [$_char("[\"\"]",false)],
+        [$_char(/[""]/)],
         [$_dollar($_plus($_or(
-          $_token("\\\\\"",false),
-          $_char("[^\"]",false)
+          $_token('\\"'),
+          $_char(/[^"]/)
         ))),'c'],
-        [$_char("[\"\"]",false)],
+        [$_char(/[""]/)],
         [$_maybe($_token("i",false)),'i']
       ], ({c,i}) => {
-      return `$_token(${JSON.stringify(c)},${!!i})`
+      return `$_token("${c}",${!!i})`
       })
     ).apply(this)
   }
@@ -429,14 +435,14 @@ const redesParser = function redes() {
       [$_dollar($_seq([
         [$_token("[",false)],
         [$_plus($_or(
-          $_token("\\\\]",false),
-          $_char("[^\\]]",false)
+          $_token("\\]",false),
+          $_char(/[^\]]/)
         ))],
         [$_token("]",false)]
       ])),'c'],
       [$_maybe($_token("i",false)),'i']
     ], ({c,i}) => {
-    return `$_char(${JSON.stringify(c)},${!!i})`
+    return `$_char(/${c}/${i||''})`
     }).apply(this)
   }
   function rule_dot() {
@@ -444,19 +450,6 @@ const redesParser = function redes() {
       [$_token(".",false),'dot']
     ], ({dot}) => {
     return `$_dot()`
-    }).apply(this)
-  }
-  function rule_regex() {
-    return $_seq([
-      [$_char("[/]",false)],
-      [$_dollar($_plus($_or(
-        $_token("\\\\/",false),
-        $_char("[^/]",false)
-      ))),'c'],
-      [$_char("[/]",false)],
-      [$_maybe($_token("i",false)),'i']
-    ], ({c,i}) => {
-    return `$_char(${JSON.stringify(c)},${!!i})`
     }).apply(this)
   }
   function rule_block() {
@@ -472,22 +465,22 @@ const redesParser = function redes() {
   }
   function rule_block_chunk() {
     return $_or(
-      $_dollar($_plus($_char("[^'\"{}`]",false))),
+      $_dollar($_plus($_char(/[^'"{}`]/))),
       $_dollar($_seq([
         [$_token("'",false)],
         [$_star($_or(
-          $_token("\\\\'",false),
-          $_char("[^\\n']",false)
+          $_token("\\'",false),
+          $_char(/[^\n']/)
         ))],
         [$_token("'",false)]
       ])),
       $_dollar($_seq([
-        [$_token("\"",false)],
+        [$_token('"')],
         [$_star($_or(
-          $_token("\\\\\"",false),
-          $_char("[^\\n\"]",false)
+          $_token('\\"'),
+          $_char(/[^\n"]/)
         ))],
-        [$_token("\"",false)]
+        [$_token('"')]
       ])),
       rule_template,
       $_dollar(rule_block)
@@ -495,19 +488,19 @@ const redesParser = function redes() {
   }
   function rule_template() {
     return $_dollar($_seq([
-      [$_token("`",false)],
+      [$_token('`')],
       [$_star(rule_template_chunk)],
-      [$_token("`",false)]
+      [$_token('`')]
     ])).apply(this)
   }
   function rule_template_chunk() {
     return $_or(
-      $_dollar($_token("\\\\$",false)),
+      $_dollar($_token('\\$')),
       $_dollar($_seq([
-        [$_token("$",false)],
+        [$_token('$')],
         [rule_block]
       ])),
-      $_dollar($_plus($_char("[^$`]",false))),
+      $_dollar($_plus($_char(/[^$`]/))),
       $_seq([
         [$_token("$",false)],
         [$_bang($_token("{",false))]
@@ -516,21 +509,21 @@ const redesParser = function redes() {
   }
   function rule_ident() {
     return $_dollar($_plus($_seq([
-      [$_char("[a-z_]",true)],
-      [$_star($_char("[a-z0-9]",true))]
+      [$_char(/[a-z_]/i)],
+      [$_star($_char(/[a-z0-9]/i))]
     ]))).apply(this)
   }
   function rule__() {
-    return $_star($_char("[ \\n\\t\\r]",false)).apply(this)
+    return $_star($_char(/[ \n\t\r]/)).apply(this)
   }
   function rule___() {
-    return $_plus($_char("[ \\n\\t\\r]",false)).apply(this)
+    return $_plus($_char(/[ \n\t\r]/)).apply(this)
   }
   function rule_eol() {
     return $_or(
       $_plus($_seq([
         [rule__],
-        [$_token("\\n",false)]
+        [$_token("\n",false)]
       ])),
       $_seq([
         [rule__],
@@ -543,165 +536,7 @@ const redesParser = function redes() {
   }
 
 };
-
-const redesBase = function redes() {
-  const FAIL = ['FAIL'];
-  const MAX_OPS = 100000;
-  const MAX_DEPTH = 1000;
-  return {parse:$_parse}
-  function $_parse(text) {
-    var state = {
-      text: text,
-      pos: 0,
-      ops: 0,
-      stack:[],
-      begin() {
-        this.stack.push(this.pos);
-        if (this.stack.length> MAX_DEPTH)
-          throw({message:'too much recursion: MAX_DEPTH='+MAX_DEPTH});
-        this.ops++;
-        if (this.ops>this.MAX_OPS)
-          throw({message:'too many ops: MAX_OPS='+MAX_OPS});
-      },
-      found(c) {
-        this.stack.pop();
-        return c;
-      },
-      fail() {
-        this.pos = this.stack.pop();
-        return FAIL;
-      }
-    }
-    var res = $_start.apply(state);
-    if (state.pos!==text.length) {
-      var lines = state.text.slice(0,state.pos).split(/\n/);
-      var line = lines.length;
-      var col = lines.pop().length;
-      console.log('syntax error at line',line,'col',col,text.slice(state.pos,20))
-    }
-    return res;
-  }
-  
-  function $_token(chars) {
-  	return function (){ 
-      this.begin();
-      if(this.text.substr(this.pos,chars.length) == chars) {
-        this.pos+=chars.length;
-        return this.found(chars);
-      }
-      return this.fail()
-    }
-  }
-  function $_char(re) {
-  	re = new RegExp(re);
-  	return function (){ 
-      this.begin();
-      if(this.pos>=this.text.length) return this.fail();
-      var char = this.text.charAt(this.pos);
-      if (!re.test(char)) return this.fail();
-      this.pos++;
-      return this.found(char);
-    }
-  }
-  function $_any() {
-  	return function (){ 
-      this.begin();
-      if(res.pos>=this.text.length) return this.fail;
-      var char = this.text.charAt(this.pos);
-      this.pos++;
-      return this.found(char);
-    }
-  }
-  function $_seq(args,action) {
-  	return function (){ 
-      this.begin();
-      var ret = {};
-      for (var arg of args) {
-        if (!Array.isArray(arg)) {
-          console.log(arg)
-          throw 'not an array'
-        }
-      	var res = arg[0].apply(this);
-        if(res==FAIL) return this.fail();
-        if(arg[1]) ret[arg[1]] = res;
-      }
-      if (action) return this.found(action.call(this,ret,this))
-      return this.found(ret)
-    }
-  }
-  function $_or(...args) {
-  	return function (){ 
-      this.begin();
-      for (var arg of args) {
-      	var res = arg.apply(this);
-        if(res!==FAIL) return this.found(res);
-      }
-      return this.fail()
-    }
-  }
-  function $_dollar(arg) {
-  	return function (){
-    	this.begin();
-      let start = this.pos;
-      if (arg.apply(this)===FAIL) return this.fail();
-      return this.found(this.text.slice(start,this.pos));
-    }
-  }
-  function $_amp(arg) {
-  	return function (){
-    	this.begin();
-      let start = this.pos;
-      var res = arg.apply(this);
-      if (res===FAIL) return this.fail();
-      this.pos = start;
-      return this.found(res);
-    }
-  }
-  function $_bang(arg) {
-  	return function (){
-    	this.begin();
-      let start = this.pos;
-      var res = arg.apply(this);
-      if (res!==FAIL) return this.fail();
-      this.pos = start;
-      return this.found();
-    }
-  }
-  function $_plus(arg) {
-  	return function (){
-      this.begin();
-      var ret = [];
-      do {
-        var res = arg.apply(this);
-        if (res===FAIL) break;
-        ret.push(res);
-      } while (true)
-      if (!ret.length) return this.fail();
-      return this.found(ret);
-    }   
-  }
-  function $_maybe(arg) {
-  	return function (){
-      this.begin();
-      var ret = [];
-      var res = arg.apply(this);
-      if (res===FAIL) return this.found();
-      return this.found(res);
-    }   
-  }
-  function $_star(arg) {
-    return function (){
-      this.begin();
-      var ret = [];
-      do {
-        var res = arg.apply(this);
-        if (res===FAIL) break;
-        ret.push(res);
-      } while (true)
-      return this.found(ret);
-    }   
-  }
-};
+const splitToken = '/*jd1vslklixm-v86rkepd68j*/';
 
 module.exports.Parser = function(grammar,options){
   var src = redesSource(grammar);
@@ -712,5 +547,5 @@ module.exports.Parser = function(grammar,options){
 
 function redesSource (grammar,options) {
   var src = redesParser.parse(grammar);
-  return redesBase.toString().slice(0,-1) + src + '\n}'
+  return redesParser.toString().split(splitToken)[0] + '\n' + src + '\n}'
 }
