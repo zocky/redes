@@ -11,6 +11,6 @@ function Parser (grammar,options){
 }
 
 function toSource (grammar,options) {
-  var src = redesParser.parse(grammar);
+  var src = redesParser().parse(grammar);
   return redesParser.toString().split(splitToken)[0] + '\n' + src + '\n}'
 }

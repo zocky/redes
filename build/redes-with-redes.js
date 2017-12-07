@@ -4,25 +4,28 @@ const redesParser = function redes() {
   const MAX_DEPTH = 1000;
   return {parse:$_parse}
   function $_parse(text) {
+    var depth=0;
+    const stack=[];
+    var pos = 0;
     var state = {
       text: text,
       pos: 0,
-      ops: 0,
-      stack:[],
       begin() {
-        this.stack.push(this.pos);
-        if (this.stack.length> MAX_DEPTH)
+        stack[depth++]=this.pos;
+        if (depth> MAX_DEPTH)
           throw({message:'too much recursion: MAX_DEPTH='+MAX_DEPTH});
+        /*
         this.ops++;
         if (this.ops>this.MAX_OPS)
           throw({message:'too many ops: MAX_OPS='+MAX_OPS});
+        */
       },
       found(c) {
-        this.stack.pop();
+        depth--;
         return c;
       },
       fail() {
-        this.pos = this.stack.pop();
+        this.pos = stack[--depth];
         return FAIL;
       }
     }
@@ -39,7 +42,7 @@ const redesParser = function redes() {
   function $_token(chars) {
   	return function (){ 
       this.begin();
-      if(this.text.substr(this.pos,chars.length) == chars) {
+      if(this.text.substr(this.pos,chars.length) === chars) {
         this.pos+=chars.length;
         return this.found(chars);
       }
@@ -49,7 +52,7 @@ const redesParser = function redes() {
   function $_itoken(chars) {
   	return function (){ 
       this.begin();
-      if(this.text.substr(this.pos,chars.length).toLowerCase() == chars) {
+      if(this.text.substr(this.pos,chars.length).toLowerCase() === chars) {
         this.pos+=chars.length;
         return this.found(chars);
       }
@@ -85,7 +88,7 @@ const redesParser = function redes() {
           throw 'not an array'
         }
       	var res = arg[0].apply(this);
-        if(res==FAIL) return this.fail();
+        if(res===FAIL) return this.fail();
         if(arg[1]) ret[arg[1]] = res;
       }
       if (action) return this.found(action.call(this,ret,this))
@@ -165,7 +168,7 @@ const redesParser = function redes() {
     }   
   }
 
-/*jd1vslklixm-v86rkepd68j*/
+
 function indent (t) {
     	return "\n  "+t.replace(/\n/g,'\n  ')+"\n";
     }
@@ -536,16 +539,18 @@ function indent (t) {
   }
 
 };
-const splitToken = '/*jd1vslklixm-v86rkepd68j*/';
+const splitToken = '/*pof2mtaaxab-vvfv61y1ya*/';
 
-module.exports.Parser = function(grammar,options){
-  var src = redesSource(grammar);
-  console.log(src);
+
+module.exports = {Parser,toSource};
+
+function Parser (grammar,options){
+  var src = toSource(grammar);
   var fn = new Function('','return '+src);
-  return fn();
+  return fn()();
 }
 
-function redesSource (grammar,options) {
-  var src = redesParser.parse(grammar);
+function toSource (grammar,options) {
+  var src = redesParser().parse(grammar);
   return redesParser.toString().split(splitToken)[0] + '\n' + src + '\n}'
 }

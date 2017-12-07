@@ -12,25 +12,28 @@ module.exports = function redes () {
   const MAX_DEPTH = 1000;
   return {parse:$_parse}
   function $_parse(text) {
+    var depth=0;
+    const stack=[];
+    var pos = 0;
     var state = {
       text: text,
       pos: 0,
-      ops: 0,
-      stack:[],
       begin() {
-        this.stack.push(this.pos);
-        if (this.stack.length> MAX_DEPTH)
+        stack[depth++]=this.pos;
+        if (depth> MAX_DEPTH)
           throw({message:'too much recursion: MAX_DEPTH='+MAX_DEPTH});
+        /*
         this.ops++;
         if (this.ops>this.MAX_OPS)
           throw({message:'too many ops: MAX_OPS='+MAX_OPS});
+        */
       },
       found(c) {
-        this.stack.pop();
+        depth--;
         return c;
       },
       fail() {
-        this.pos = this.stack.pop();
+        this.pos = stack[--depth];
         return FAIL;
       }
     }
@@ -47,7 +50,7 @@ module.exports = function redes () {
   function $_token(chars) {
   	return function (){ 
       this.begin();
-      if(this.text.substr(this.pos,chars.length) == chars) {
+      if(this.text.substr(this.pos,chars.length) === chars) {
         this.pos+=chars.length;
         return this.found(chars);
       }
@@ -57,7 +60,7 @@ module.exports = function redes () {
   function $_itoken(chars) {
   	return function (){ 
       this.begin();
-      if(this.text.substr(this.pos,chars.length).toLowerCase() == chars) {
+      if(this.text.substr(this.pos,chars.length).toLowerCase() === chars) {
         this.pos+=chars.length;
         return this.found(chars);
       }
@@ -93,7 +96,7 @@ module.exports = function redes () {
           throw 'not an array'
         }
       	var res = arg[0].apply(this);
-        if(res==FAIL) return this.fail();
+        if(res===FAIL) return this.fail();
         if(arg[1]) ret[arg[1]] = res;
       }
       if (action) return this.found(action.call(this,ret,this))
