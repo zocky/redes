@@ -1,0 +1,174 @@
+{
+  /*
+    PEG Grammar for generating the redes grammar parser.
+    The same grammar should be parsable by redes, and should produce the same output as PEG.
+  */
+
+	function indent (t) {
+    	return "\n  "+t.replace(/\n/g,'\n  ')+"\n";
+    }
+    
+}
+
+grammar
+= intro:action? _ defs:defs {
+  return (intro||'') + '\n' + defs;
+}
+
+defs
+= defs:def+ {
+
+  var methods = defs.map(def=>(
+	`function rule_${def.name}() {${indent(`return ${def.rule}.apply(this)`)}}`
+  ));
+  methods.push(`function $_start() {\n  return rule_${defs[0].name}.apply(this)\n}`)
+  
+  return indent(methods.join('\n'))
+}
+
+def
+= _ ident:ident _ "=" _ or:or eol {
+  return {name:ident,rule:or}
+}
+
+or 
+= head: seq tail: (
+  _ [|/] _ seq:seq { return seq }
+)* { 
+	if(!tail.length) return head; 
+    return `$_or(${indent([head].concat(tail).join(',\n'))})`
+}
+
+seq  
+= chunks:(
+   head: chunk tail: ( __ chunk:chunk { return chunk } )+ {return [head].concat(tail)} 
+/ chunk:named_chunk { return [chunk] }
+)
+   action:action? {
+    var names = [];
+    var args = [];
+    chunks.forEach(chunk=>{
+      if(chunk.name) {
+        names.push(chunk.name);
+        args.push(`[${chunk.piece},'${chunk.name}']`);
+      } else {
+        args.push(`[${chunk.piece}]`);
+      }
+    })
+    var fn = '';
+    if(action) {
+    	try {
+          new Function('','return ('+action+')')
+ 	   	  fn = `, ({${names.join(',')}}) => (\n${action}\n)`
+        } catch(err) {
+          try {
+          	new Function('',action)
+ 	   	    fn = `, ({${names.join(',')}}) => {\n${action}\n}`
+          } catch(err) {
+            throw(err);
+          }
+        }
+    }
+    return `$_seq([${indent(args.join(',\n'))}]${fn})`
+}
+/ piece 
+
+action = _ block:block { return block }
+
+chunk
+= named_chunk
+/ anon_chunk
+
+named_chunk
+= name:ident _ ":" _ piece:piece {
+	return {name,piece}
+}
+
+anon_chunk =
+piece: piece {
+	return {piece}
+}
+
+piece
+= "!" bit:bit {
+    return `$_bang(${bit})`
+}
+/ "&" bit:bit {
+    return `$_amp(${bit})`
+}
+/ "$" bit:bit {
+    return `$_dollar(${bit})`
+}
+/ bit 
+bit
+= star
+/ plus
+/ maybe
+/ atom
+
+rule
+=  !def ident:ident {
+	return `rule_${ident}` 
+}
+
+maybe
+= atom:atom _ "?" {
+    return `$_maybe(${atom})`
+}
+
+star
+= atom:atom _ "*" {
+    return `$_star(${atom})`
+}
+
+plus
+= atom:atom _ "+" {
+    return `$_plus(${atom})`
+}
+
+atom
+= token
+/ char
+/ dot
+/ rule
+/ "(" _ or:or _ ")" { return or }
+
+token 
+= [''] c:$("\\'"/[^'])+ [''] i:"i"? { return `$_token(${JSON.stringify(c)},${!!i})`}
+/ [""] c:$('\\"'/[^"])+ [""] i:"i"? { return `$_token(${JSON.stringify(c)},${!!i})`}
+
+char
+= c:$("[" ("\\]"/[^\]])+ "]") i:"i"? { return `$_char(${JSON.stringify(c)},${!!i})`}
+
+dot
+= dot:"." { return `$_dot()`}
+
+regex 
+= [/] c:$("\\/"/[^/])+ [/] i:"i"? { return `$_char(${JSON.stringify(c)},${!!i})`} 
+
+block 
+= "{" _ chunks:block_chunk* _ "}" { return chunks.join('') }
+
+block_chunk
+= $([^'"{}`]+)
+/ $("'" ("\\'"/[^\n'])* "'")
+/ $('"' ('\\"'/[^\n"])* '"')
+/ template
+/ $(block)
+
+template
+= $('`' template_chunk* '`')
+
+template_chunk
+= $('\\$')
+/ $('$' block)
+/ $([^$`]+)
+/ "$" !"{"
+
+ident
+= $([a-z_]i [a-z0-9]i*)+
+
+_ = [ \n\t\r]*
+__ = [ \n\t\r]+
+
+eol = (_ "\n") + / _ !"."

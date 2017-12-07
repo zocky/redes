@@ -1,0 +1,30 @@
+{
+  "name": "redes",
+  "version": "1.0.0",
+  "description": "Recursive descent parser generator for JavaScript",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zocky/redes.git"
+  },
+  "keywords": [
+    "js",
+    "javascript",
+    "parser",
+    "generator",
+    "recursive",
+    "descent"
+  ],
+  "author": "Zoran Obradović",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/zocky/redes/issues"
+  },
+  "homepage": "https://github.com/zocky/redes#readme",
+  "devDependencies": {
+    "pegjs": "pegjs/pegjs#master"
+  }
+}
