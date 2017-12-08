@@ -47,7 +47,7 @@ module.exports = function redes () {
       return re.test(char) && (S.pos++,[char]);
     }
   }
-  const $_any=() =>{
+  const $_dot=() =>{
   	return (S) => S.pos < S.text.length && [S.text.charAt(S.pos++)];
   }
   const $_seq=(args,action) =>{

@@ -1,74 +1,109 @@
 {
 
 	function indent (t) {
-    return t;
-  }
+    	return "\n  "+t.replace(/\n/g,'\n  ')+"\n";
+    }
+
+	function str (str) { return JSON.stringify(String(str)) ;}
+    const ops = {
+      'token':  ({token})    =>  `$_token(${str(token)})`,
+      'itoken': ({token})    =>  `$_itoken(${str(token)})`,
+      'match':  ({char})     =>  `$_char(/[${char}]/)`,
+      'imatch': ({char})     =>  `$_char(/[${char}]/i)`,
+      'dot':    ()           =>  `$_dot()`,
+      'dollar': ({child})    =>  `$_dollar(${proc(child)})`,
+      'star':   ({child})    =>  `$_star(${proc(child)})`,
+      'plus':   ({child})    =>  `$_plus(${proc(child)})`,
+      'maybe':  ({child})    =>  `$_maybe(${proc(child)})`,
+      'bang':   ({child})    =>  `$_bang(${proc(child)})`,
+      'amp':    ({child})    =>  `$_amp(${proc(child)})`,
+      'rule':   ({rule})     =>  {
+        if (!ruleNames.includes(rule)) error( 'Unknown rule '+rule);
+      	return `(comp_${rule}||rule_${rule})`
+       },
+      'or':     ({children}) =>  `$_or([${children.map(proc).join(',\n')}])`,
+      'seq':    ({children,action}) => {
+        var names = [];
+        var args = children.map(({name,child})=>{
+          if (!name) return `[${proc(child)}]`
+          names.push(name);
+          return `[${proc(child)},${str(name)}]`;
+        })
+		if (!action) return `$_seq([${args.join(',\n')}])`;
+        var actionArgs = `({${names.join(',')}})`;
+        try {
+          var fn = new Function(`return(${action})`);
+          var actionFn = `${actionArgs}=>(${action})`;
+        } catch (err) {
+          try {
+            var fn = new Function(action);
+            var actionFn = `${actionArgs}=>{${action}}`;
+          } catch (err) {
+            throw err
+          }
+        }
+        return `$_seq([${args.join(', ')}],${actionFn})`;
+      },
+      'def':   ({name,def}) => {
+		return `var comp_${name}; const rule_${name}=(S)=>(comp_${name}||(comp_${name}=${proc(def)}))(S)`
+      },
+      'grammar': ({intro,defs}) => {
+      	ruleNames = defs.map(def=>def.name);
+        var rules = defs.map(proc);
+        return `${intro}\n\n${rules.join('\n')}\nconst $_start=rule_${defs[0].name}`;
+      }
+    };
+    var ruleNames;
+    function proc(node) {
+    	if (Array.isArray(node)) return node.map(n=>proc(n));
+        if (!node || !node.$) return node;
+    	if (ops[node.$]) {
+        	return ops[node.$](node);
+        } else {
+          var ret = {$:node.$};
+          for (var i in node) {
+            if (i=='$') continue;
+            ret[i]=proc(node[i]);
+          }
+          return ret;
+        }
+    }
+}
+
+proc
+= grammar:grammar _ !.{
+  return proc(grammar);
 }
 
 
 grammar
-= intro:action? _ defs:defs {
-  return '\n'+(intro||'') + '\n' + defs;
+= intro:action? _ defs:def+ {
+  return {$:'grammar',intro,defs};
 }
-
-defs
-= defs:def+ {
-  var methods = defs.map(def=>{
-	  return `var comp_${def.name}; 
-const rule_${def.name} = (S) => {
-return (comp_${def.name}||(comp_${def.name} = ${def.rule}))(S);
-}`
-  }).reverse();
-  
-  methods.push(`function $_start(S) {\n  return rule_${defs[0].name}(S)\n}`)
-  
-  return indent(methods.join('\n'))
-}
-
+ 
 def
-= _ ident:ident _ "=" _ or:or eol {
-  return {name:ident,rule:or}
+= _ name:ident _ "=" _ def:or eol {
+  return {$:'def',name,def}
 }
 
 or 
 = head: seq tail: (
   _ [|/] _ seq:seq { return seq }
 )* { 
-	if(!tail.length) return head; 
-    return `$_or([${indent([head].concat(tail).join(',\n'))}])`
+	if(!tail.length) return head;
+    return {$:'or',children:[head].concat(tail)};
 }
 
 seq  
-= chunks:(
+= children:(
    head: chunk tail: ( __ chunk:chunk { return chunk } )+ {return [head].concat(tail)} 
 / chunk:named_chunk { return [chunk] }
 )
    action:action? {
-    var names = [];
-    var args = [];
-    chunks.forEach(chunk=>{
-      if(chunk.name) {
-        names.push(chunk.name);
-        args.push(`[${chunk.piece},'${chunk.name}']`);
-      } else {
-        args.push(`[${chunk.piece}]`);
-      }
-    })
-    var fn = '';
-    if(action) {
-    	try {
-          new Function('','return ('+action+')')
- 	   	  fn = `, ({${names.join(',')}}) => (\n${action}\n)`
-        } catch(err) {
-          try {
-          	new Function('',action)
- 	   	    fn = `, ({${names.join(',')}}) => {\n${action}\n}`
-          } catch(err) {
-            throw(err);
-          }
-        }
-    }
-    return `$_seq([${indent(args.join(',\n'))}]${fn})`
+   return {$:'seq',children,action}
+}
+/ piece:piece action:action {
+  return {$:'seq',children:[{name:'match',child:piece}],action};
 }
 / piece 
 
@@ -79,27 +114,24 @@ chunk
 / anon_chunk
 
 named_chunk
-= name:ident _ ":" _ piece:piece {
-	return {name,piece}
+= name:ident _ ":" _ child:piece {
+	return {name,child}
 }
 
 anon_chunk =
-piece: piece {
-	return {piece}
+child: piece {
+	return {child}
 }
 
 piece
-= "!" bit:bit {
-    return `$_bang(${bit})`
+= "!" child:bit {
+    return {$:'bang',child}
 }
-/ "&" bit:bit {
-    return `$_amp(${bit})`
+/ "&" child:bit {
+    return {$:'amp',child}
 }
-/ "$" bit:bit {
-    return `$_dollar(${bit})`
-}
-/ "&" action {
-    return `$_amp($_any())`
+/ "$" child:bit {
+    return {$:'dollar',child}
 }
 / bit 
 bit
@@ -109,44 +141,69 @@ bit
 / atom
 
 rule
-=  !def ident:ident {
-	return `comp_${ident}||rule_${ident}` 
+=  !def rule:ident {
+	return {$:'rule',rule}; 
 }
 
 maybe
-= atom:atom _ "?" {
-    return `$_maybe(${atom})`
+= child:atom _ "?" {
+    return {$:'maybe',child}
 }
 
 star
-= atom:atom _ "*" {
-    return `$_star(${atom})`
+= child:atom _ "*" {
+    return {$:'star',child}
 }
 
 plus
-= atom:atom _ "+" {
-    return `$_plus(${atom})`
+= child:atom _ "+" {
+    return {$:'plus',child}
 }
 
 atom
 = token
-/ char
+/ match
 / dot
 / rule
 / "(" _ or:or _ ")" { return or }
 
-token 
-= [''] c:$("\\'"/[^'])+ [''] i:"i"? { 
-  if (i) return `$_itoken('${c.toLowerCase()}')`;
-  else return `$_token('${c}')`;
+token
+= token:( token1 / token2 ) i:"i"? {
+  try {
+    let str = JSON.parse(`"${token}"`)
+    if (i) return {$:'itoken',token:str};
+    return {$:'token',token:str};
+  } catch (err) {
+    error(err);
+  }
 }
-/ [""] c:$('\\"'/[^"])+ [""] i:"i"? { return `$_token("${c}",${!!i})`}
 
-char
-= "[" c:$(("\\]"/[^\]])+) "]" i:"i"? { return `$_char(/^[${c}]/${i||''})`}
+token1 
+= [''] token:ctoken1+ [''] { return token.join('') }
+
+ctoken1
+= "\\'" { return "'" }
+/ '"' { return '\\"' }
+/ [^']
+
+token2 
+= [""] token:ctoken2+ [""] { return token.join('') }
+
+ctoken2
+= '\\"' 
+/ [^"]
+
+
+match
+= "[" char:$(("\\]"/[^\]])+) "]" i:"i"? {
+  if (i) return {$:'imatch',char};
+  return {$:'match',char}
+}
 
 dot
-= dot:"." { return `$_dot()`}
+= dot:"." { 
+  return {$:'dot'}
+}
 
 block 
 = "{" _ chunks:block_chunk* _ "}" { return chunks.join('') }
