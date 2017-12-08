@@ -1,22 +1,52 @@
 {
 
 	function indent (t) {
-    	return "\n  "+t.replace(/\n/g,'\n  ')+"\n";
-    }
+    return "\n  "+t.replace(/\n/g,'\n  ')+"\n";
+  }
+  var cur_def;
+  var def_dep={};
+
+  var sorted = {};
+  function sortDeps() {
+    do {
+      var keys = Object.keys(def_dep);
+      keys.sort((a,b)=>{
+        returnObject.keys(def_dep[a]).length - Object.keys(def_dep[b]).length; 
+      });
+      console.log('keys',keys.map(k=>[k,Object.keys(def_dep[k]).length]));
+      return;
+      outer: for (var k of keys) {
+        for (var dep in def_dep[k]) {
+          console.log('try',k,dep,!!sorted[dep])
+          if (!sorted[dep]) continue outer;  
+        }
+        console.log('found',k)
+        sorted[k] = true;
+        delete def_dep[k];
+      }
+    } while(Object.keys(def_dep).length < keys.length)
+    return Object.keys(sorted);
+  }
 }
 
 grammar
 = intro:action? _ defs:defs {
-  return (intro||'') + '\n' + defs;
+  return '\n'+(intro||'') + '\n' + defs;
 }
 
 defs
 = defs:def+ {
-
-  var methods = defs.map(def=>(
-	`function rule_${def.name}() {${indent(`return ${def.rule}.apply(this)`)}}`
-  ));
-  methods.push(`function $_start() {\n  return rule_${defs[0].name}.apply(this)\n}`)
+  var methods = defs.map(def=>{
+	  return `var comp_${def.name}; 
+const rule_${def.name} = (S) => {
+if (!comp_${def.name}) {
+comp_${def.name} = ${def.rule}
+}
+return comp_${def.name}(S);
+}`
+  }).reverse();
+  
+  methods.push(`function $_start(S) {\n  return rule_${defs[0].name}(S)\n}`)
   
   return indent(methods.join('\n'))
 }
@@ -31,7 +61,7 @@ or
   _ [|/] _ seq:seq { return seq }
 )* { 
 	if(!tail.length) return head; 
-    return `$_or(${indent([head].concat(tail).join(',\n'))})`
+    return `$_or([${indent([head].concat(tail).join(',\n'))}])`
 }
 
 seq  
@@ -94,6 +124,9 @@ piece
 / "$" bit:bit {
     return `$_dollar(${bit})`
 }
+/ "&" action {
+    return `$_amp($_any())`
+}
 / bit 
 bit
 = star
@@ -103,7 +136,7 @@ bit
 
 rule
 =  !def ident:ident {
-	return `rule_${ident}` 
+	return `comp_${ident}||rule_${ident}` 
 }
 
 maybe
@@ -136,7 +169,7 @@ token
 / [""] c:$('\\"'/[^"])+ [""] i:"i"? { return `$_token("${c}",${!!i})`}
 
 char
-= c:$("[" ("\\]"/[^\]])+ "]") i:"i"? { return `$_char(/${c}/${i||''})`}
+= "[" c:$(("\\]"/[^\]])+) "]" i:"i"? { return `$_char(/^[${c}]/${i||''})`}
 
 dot
 = dot:"." { return `$_dot()`}

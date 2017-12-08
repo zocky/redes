@@ -1,6 +1,5 @@
 const redesParser = '###REDESPARSER###';
 const redesBase = '###REDESBASE###';
-const splitToken = '/*###SPLIT###*/';
 
 module.exports = {Parser,toSource};
 
@@ -12,5 +11,7 @@ function Parser (grammar,options){
 
 function toSource (grammar,options) {
   var src = redesParser.parse(grammar);
-  return redesBase.toString().slice(0,-1) + '\n' + splitToken + '\n' + src + '\n}'
+  var parts = redesBase.toString().split('/*###SPLIT###*/') 
+  parts[1] = src;
+  return parts.join('/*###SPLIT###*/');
 }
