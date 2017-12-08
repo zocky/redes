@@ -1,33 +1,10 @@
 {
 
 	function indent (t) {
-    return "\n  "+t.replace(/\n/g,'\n  ')+"\n";
-  }
-  var cur_def;
-  var def_dep={};
-
-  var sorted = {};
-  function sortDeps() {
-    do {
-      var keys = Object.keys(def_dep);
-      keys.sort((a,b)=>{
-        returnObject.keys(def_dep[a]).length - Object.keys(def_dep[b]).length; 
-      });
-      console.log('keys',keys.map(k=>[k,Object.keys(def_dep[k]).length]));
-      return;
-      outer: for (var k of keys) {
-        for (var dep in def_dep[k]) {
-          console.log('try',k,dep,!!sorted[dep])
-          if (!sorted[dep]) continue outer;  
-        }
-        console.log('found',k)
-        sorted[k] = true;
-        delete def_dep[k];
-      }
-    } while(Object.keys(def_dep).length < keys.length)
-    return Object.keys(sorted);
+    return t;
   }
 }
+
 
 grammar
 = intro:action? _ defs:defs {
@@ -39,10 +16,7 @@ defs
   var methods = defs.map(def=>{
 	  return `var comp_${def.name}; 
 const rule_${def.name} = (S) => {
-if (!comp_${def.name}) {
-comp_${def.name} = ${def.rule}
-}
-return comp_${def.name}(S);
+return (comp_${def.name}||(comp_${def.name} = ${def.rule}))(S);
 }`
   }).reverse();
   

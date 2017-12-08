@@ -5,14 +5,13 @@
   the grammar parser.
 */
 
+'use strict';
+
 
 module.exports = function redes () {
   const MAX_OPS = 100000;
   const MAX_DEPTH = 1000;
-  function $_parse(text) {
-    var depth=0;
-    const stack=[];
-    var pos = 0;
+  function $_parse(text="") {
     var state = {
       text: text,
       pos: 0,
@@ -21,12 +20,13 @@ module.exports = function redes () {
     if (state.pos!==text.length) {
       var lines = state.text.slice(0,state.pos).split(/\n/);
       var line = lines.length;
-      var col = lines.pop().length;
+      var col = lines.pop().length+1;
+      throw new Error(`Syntax error at [${line}:${col}]: ${text.substr(text,20)}`)
     }
     return res[0];
   }
   
-  const $_token = (chars) => {
+  const $_token = (chars="") => {
   	return (S)=> (
         S.text.substr(S.pos,chars.length) === chars
         && (S.pos+=chars.length,[chars])
@@ -34,15 +34,16 @@ module.exports = function redes () {
   }
   const $_itoken= (chars)=> {
   	return (S)=>{
-      if(S.text.substr(S.pos,chars.length).toLowerCase() === chars) {
+      const tchars = S.text.substr(S.pos,chars.length)
+      if(tchars.toLowerCase() === chars) {
         S.pos+=chars.length;
-        return ([chars]);
+        return ([tchars]);
       }
     }
   }
   const $_char=(re)=> {
   	return (S)=>{ 
-      var char = S.text.charAt(S.pos);
+      const char = S.text.charAt(S.pos);
       return re.test(char) && (S.pos++,[char]);
     }
   }
@@ -52,20 +53,19 @@ module.exports = function redes () {
   const $_seq=(args,action) =>{
   	return (S)=>{ 
       const pos=S.pos;
-      var ret = {};
-      for (var arg of args) {
-      	var res = arg[0](S);
+      const ret = {};
+      for (const arg of args) {
+      	const res = arg[0](S);
         if(!res) return (S.pos=pos,false);
         if(arg[1]) ret[arg[1]] = res[0];
       }
-      if (action) return ([action(ret)])
-      return ([ret])
+      return action ? [action(ret)] : [ret];
     }
   }
   const $_or=(args)=> {
   	return (S)=>{ 
-      for (var arg of args) {
-      	var res = arg(S);
+      for (const arg of args) {
+      	const res = arg(S);
         if (res) return (res);
       }
       return false
@@ -73,60 +73,41 @@ module.exports = function redes () {
   }
   const $_dollar=(arg)=> {
   	return (S)=>{
-    	const pos=S.pos;
-      if (!arg(S)) return (S.pos=pos,false);
-      return ([S.text.slice(pos,S.pos)]);
+    	const pos = S.pos;
+      return arg(S) && [S.text.slice(pos,S.pos)];
     }
   }
   const $_amp=(arg)=> {
   	return (S)=>{
-    	const pos=S.pos;
-      var res = arg(S);
+    	const pos = S.pos, res = arg(S);
       S.pos = pos;
-      if (!res) return false;
       return res;
     }
   }
   const $_bang=(arg)=> {
   	return (S)=>{
-    	const pos=S.pos;
-      var res = arg(S);
+    	const pos=S.pos, res = arg(S);
       S.pos = pos;
-      if (res) return false;
-      return [];
+      return res ? false : [];
     }
   }
   const $_plus=(arg) =>{
   	return (S)=>{
-      const pos=S.pos;
-      var ret = [];
-      do {
-        var res = arg(S);
-        if (!res) break;
-        ret.push(res[0]);
-      } while (true)
-      if (!ret.length) return (S.pos=pos,false);
-      return ([ret]);
+      const ret=[]; var res;
+      while(res=arg(S)) ret.push(res[0]);
+      return ret.length && [ret];
     }   
   }
   const $_maybe=(arg) =>{
   	return (S)=>{
-      const pos=S.pos;
-      var res = arg(S);
-      if (!res) return [];
-      return (res);
+      return arg(S) || [];
     }   
   }
   const $_star=(arg)=> {
     return (S)=>{
-      const pos=S.pos;
-      var ret = [];
-      do {
-        var res = arg(S);
-        if (!res) break;
-        ret.push(res[0]);
-      } while (true)
-      return ([ret]);
+      var ret=[], res;
+      while(res=arg(S)) ret.push(res[0]);
+      return [ret];
     }   
   }
   

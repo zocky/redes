@@ -1,3 +1,5 @@
+'use strict';
+
 const redesParser = '###REDESPARSER###';
 
 module.exports = {Parser,toSource};
