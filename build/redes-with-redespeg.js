@@ -1,23 +1,44 @@
 'use strict';
-
-const redesParser = function redes() {
+const redesParser = function Redes() {
   const MAX_OPS = 100000;
   const MAX_DEPTH = 1000;
-  function $_parse(text="") {
-    var state = {
-      text: text,
+  const Parser = {parse:$_parse}
+
+  function $_parse(text="",{ast=false,loc=false}={}) {
+    var _pos = 0;
+    const _location={line:1,col:1};
+    const $state = { 
+      get $loc() {
+        if (_pos!==state.pos) {
+          const lines = state.text.slice(0,state.pos).split(/\n/);
+          _location.line = lines.length+1;
+          _location.column = lines[lines.length-1].length+1;
+          _pos=state.pos;
+        }
+        return _location;
+      },
+      get $line() {
+        return $state.$location.line;
+      },
+      get $col() {
+        return $state.$location.col;
+      }
+    }
+    const state = {
+      ast,
+      loc,
+      text,
       pos: 0,
+      $: $state
     }
     var res = $_start(state);
     if (state.pos!==text.length) {
-      var lines = state.text.slice(0,state.pos).split(/\n/);
-      var line = lines.length;
-      var col = lines.pop().length+1;
-      throw new Error(`Syntax error at [${line}:${col}]: ${text.substr(text,20)}`)
+      throw new Error(`Syntax error at [${$state.$line}:${$state.$col}]: ${text.substr(text,20)}`)
     }
     return res[0];
   }
   
+
   const $_literal = (chars="") => {
   	return (S)=> (
         S.text.substr(S.pos,chars.length) === chars
@@ -65,7 +86,9 @@ const redesParser = function redes() {
           if(name) ret[name] = res[0];
         }
       }
-      return action ? [action(S,ret)] : [ret];
+      if (!S.ast && action) return [action(S.$,ret)];
+      if(S.loc) ret.$loc = S.$.$loc;
+      return [ret];
     }
   }
   const $_or=(args)=> {
@@ -409,20 +432,29 @@ const comp_proc=$_seq([[comp_grammar,"grammar"],
 });
 const $_start=(comp_proc||rule_proc)/*###SPLIT###*/
 
-  return {parse:$_parse}
+  return Parser;
 };
+const redesBase = '###REDESBASE###';
 
-module.exports = {Parser,toSource};
+module.exports =  {Parser,generate};
 
 function Parser (grammar,options){
-  var src = toSource(grammar);
+  var src = generate(grammar);
   var fn = new Function('','return '+src);
   return fn()();
 }
 
-function toSource (grammar,options) {
+function generate (grammar,{format='bare',export:exportVar=null}={}) {
   var src = redesParser().parse(grammar);
   var parts = redesParser.toString().split('/*###SPLIT###*/') 
   parts[1] = src;
-  return parts.join('/*###SPLIT###*/');
+  src = parts.join('/*###SPLIT###*/');
+
+  switch(format) {
+    case 'bare': return src;
+    case 'require': return exportVar ? `exports.${exportVar}=${src}` : `module.exports=${src}`;  
+    case 'import': return exportVar ? `export const ${exportVar}=${src}` : `export default ${src}`;
+    case 'global': return `(typeof global!=='undefined'?global:window).${exportVar||'Parser'}=${src}`;
+    default: throw new Error('Format must be bare, require, import or cli');
+  }
 }

@@ -1,8 +1,8 @@
 'use strict';
-const redesParser = '###REDESPARSER###';
-const redesBase = '###REDESBASE###';
 
-/*###EXPORT###*/ {Parser,generate};
+const redesParser = '###REDESPARSER###';
+
+export {Parser,generate};
 
 function Parser (grammar,options){
   var src = generate(grammar);
@@ -21,6 +21,6 @@ function generate (grammar,{format='bare',export:exportVar=null}={}) {
     case 'require': return exportVar ? `exports.${exportVar}=${src}` : `module.exports=${src}`;  
     case 'import': return exportVar ? `export const ${exportVar}=${src}` : `export default ${src}`;
     case 'global': return `(typeof global!=='undefined'?global:window).${exportVar||'Parser'}=${src}`;
-    default: throw new Error('Format must be bare, require, import or cli');
+    default: throw new Error('Format must be bare, require, import or global');
   }
 }

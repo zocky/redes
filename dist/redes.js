@@ -436,7 +436,7 @@ const $_start=(comp_proc||rule_proc)/*###SPLIT###*/
 };
 const redesBase = '###REDESBASE###';
 
-module.exports =  {Parser,generate};
+/*###EXPORT###*/ {Parser,generate};
 
 function Parser (grammar,options){
   var src = generate(grammar);
