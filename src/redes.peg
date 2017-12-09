@@ -22,24 +22,24 @@
         return actionFn
     }
     const ops = {
-      'literal':  ({literal})    =>  `$_literal(${str(literal)})`,
-      'iliteral': ({literal})    =>  `$_iliteral(${str(literal)})`,
-      'match':  ({char})     =>  `$_char(/[${char}]/)`,
-      'imatch': ({char})     =>  `$_char(/[${char}]/i)`,
-      'dot':    ()           =>  `$_dot()`,
-      'dollar': ({child})    =>  `$_dollar(${proc(child)})`,
-      'star':   ({child})    =>  `$_star(${proc(child)})`,
-      'plus':   ({child})    =>  `$_plus(${proc(child)})`,
-      'maybe':  ({child})    =>  `$_maybe(${proc(child)})`,
-      'bang':   ({child})    =>  `$_bang(${proc(child)})`,
-      'amp':    ({child})    =>  `$_amp(${proc(child)})`,
+      'literal':  ({literal})    =>  `R$L(${str(literal)})`,
+      'iliteral': ({literal})    =>  `R$I(${str(literal)})`,
+      'match':  ({char})     =>  `R$C(/[${char}]/)`,
+      'imatch': ({char})     =>  `R$C(/[${char}]/i)`,
+      'dot':    ()           =>  `R$D()`,
+      'dollar': ({child})    =>  `R$T(${proc(child)})`,
+      'star':   ({child})    =>  `R$S(${proc(child)})`,
+      'plus':   ({child})    =>  `R$P(${proc(child)})`,
+      'maybe':  ({child})    =>  `R$M(${proc(child)})`,
+      'bang':   ({child})    =>  `R$B(${proc(child)})`,
+      'amp':    ({child})    =>  `R$A(${proc(child)})`,
       'rule':   ({rule})     =>  {
         //if (!ruleNames.includes(rule)) error( 'Unknown rule '+rule);
         ruleDeps[curRule][rule]=true;
-        if (compiledRules[rule]) return `comp_${rule}`;
-      	return `(comp_${rule}||rule_${rule})`
+        if (compiledRules[rule]) return `R$$_${rule}`;
+      	return `(R$$_${rule}||R$_${rule})`
        },
-      'or':     ({children}) =>  `$_or([${children.map(proc).join(',\n')}])`,
+      'or':     ({children}) =>  `R$O([${children.map(proc).join(',')}])`,
       'seq':    ({children,action}) => {
         var names = [];
         var args = children.map(({op,name,child})=>{
@@ -48,9 +48,9 @@
           names.push(name);
           return `[${proc(child)},${str(name)}]`;
         })
-		if (!action) return `$_seq([${args.join(',\n')}])`;
+		if (!action) return `R$Q([${args.join(',')}])`;
         var fn = actionFn(names,action);
-        return `$_seq([${args.join(',\n')}],${fn})`;
+        return `R$Q([${args.join(',')}],${fn})`;
       },
       'grammar': ({intro,defs}) => {
       	ruleNames = defs.map(def=>def.name);
@@ -73,12 +73,12 @@
           done[curRule] = true;
           if (!futureDep) {
             compiledRules[def.name] = true;
-            return `const comp_${def.name}=${procDef};`
+            return `const R$$_${def.name}=${procDef};`
           }
-  		    return `var comp_${def.name}; const rule_${def.name}=(S)=>(comp_${def.name}||(comp_${def.name}=\n${procDef}))(S)`
+  		    return `var R$$_${def.name}; const R$_${def.name}=(S)=>(R$$_${def.name}||(R$$_${def.name}=\n${procDef}))(S)`
         });
         //console.log(ruleDeps)
-        return `${intro||''}\n\n${rules.join('\n')}\nconst $_start=(comp_${ruleNames[0]}||rule_${ruleNames[0]})`;
+        return `${intro||''}\n\n${rules.join('\n')}\nconst $_start=(R$$_${ruleNames[0]}||R$_${ruleNames[0]})`;
       }
     };
     var curRule;

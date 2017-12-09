@@ -2673,24 +2673,24 @@ var peg$c125 = peg$classExpectation(["$", "`"], true, false);
             return actionFn
         }
         const ops = {
-          'literal':  ({literal})    =>  `$_literal(${str(literal)})`,
-          'iliteral': ({literal})    =>  `$_iliteral(${str(literal)})`,
-          'match':  ({char})     =>  `$_char(/[${char}]/)`,
-          'imatch': ({char})     =>  `$_char(/[${char}]/i)`,
-          'dot':    ()           =>  `$_dot()`,
-          'dollar': ({child})    =>  `$_dollar(${proc(child)})`,
-          'star':   ({child})    =>  `$_star(${proc(child)})`,
-          'plus':   ({child})    =>  `$_plus(${proc(child)})`,
-          'maybe':  ({child})    =>  `$_maybe(${proc(child)})`,
-          'bang':   ({child})    =>  `$_bang(${proc(child)})`,
-          'amp':    ({child})    =>  `$_amp(${proc(child)})`,
+          'literal':  ({literal})    =>  `R$L(${str(literal)})`,
+          'iliteral': ({literal})    =>  `R$I(${str(literal)})`,
+          'match':  ({char})     =>  `R$C(/[${char}]/)`,
+          'imatch': ({char})     =>  `R$C(/[${char}]/i)`,
+          'dot':    ()           =>  `R$D()`,
+          'dollar': ({child})    =>  `R$T(${proc(child)})`,
+          'star':   ({child})    =>  `R$S(${proc(child)})`,
+          'plus':   ({child})    =>  `R$P(${proc(child)})`,
+          'maybe':  ({child})    =>  `R$M(${proc(child)})`,
+          'bang':   ({child})    =>  `R$B(${proc(child)})`,
+          'amp':    ({child})    =>  `R$A(${proc(child)})`,
           'rule':   ({rule})     =>  {
             //if (!ruleNames.includes(rule)) error( 'Unknown rule '+rule);
             ruleDeps[curRule][rule]=true;
-            if (compiledRules[rule]) return `comp_${rule}`;
-          	return `(comp_${rule}||rule_${rule})`
+            if (compiledRules[rule]) return `R$$_${rule}`;
+          	return `(R$$_${rule}||R$_${rule})`
            },
-          'or':     ({children}) =>  `$_or([${children.map(proc).join(',\n')}])`,
+          'or':     ({children}) =>  `R$O([${children.map(proc).join(',')}])`,
           'seq':    ({children,action}) => {
             var names = [];
             var args = children.map(({op,name,child})=>{
@@ -2699,9 +2699,9 @@ var peg$c125 = peg$classExpectation(["$", "`"], true, false);
               names.push(name);
               return `[${proc(child)},${str(name)}]`;
             })
-    		if (!action) return `$_seq([${args.join(',\n')}])`;
+    		if (!action) return `R$Q([${args.join(',')}])`;
             var fn = actionFn(names,action);
-            return `$_seq([${args.join(',\n')}],${fn})`;
+            return `R$Q([${args.join(',')}],${fn})`;
           },
           'grammar': ({intro,defs}) => {
           	ruleNames = defs.map(def=>def.name);
@@ -2724,12 +2724,12 @@ var peg$c125 = peg$classExpectation(["$", "`"], true, false);
               done[curRule] = true;
               if (!futureDep) {
                 compiledRules[def.name] = true;
-                return `const comp_${def.name}=${procDef};`
+                return `const R$$_${def.name}=${procDef};`
               }
-      		    return `var comp_${def.name}; const rule_${def.name}=(S)=>(comp_${def.name}||(comp_${def.name}=\n${procDef}))(S)`
+      		    return `var R$$_${def.name}; const R$_${def.name}=(S)=>(R$$_${def.name}||(R$$_${def.name}=\n${procDef}))(S)`
             });
             //console.log(ruleDeps)
-            return `${intro||''}\n\n${rules.join('\n')}\nconst $_start=(comp_${ruleNames[0]}||rule_${ruleNames[0]})`;
+            return `${intro||''}\n\n${rules.join('\n')}\nconst $_start=(R$$_${ruleNames[0]}||R$_${ruleNames[0]})`;
           }
         };
         var curRule;
@@ -2816,13 +2816,13 @@ const redesBase = function Redes() {
   }
   
 
-  const $_literal = (chars="") => {
+  const R$L = (chars="") => {
   	return (S)=> (
         S.text.substr(S.pos,chars.length) === chars
         && (S.pos+=chars.length,[chars])
     )
   }
-  const $_iliteral= (chars)=> {
+  const R$I= (chars)=> {
   	return (S)=>{
       const tchars = S.text.substr(S.pos,chars.length)
       if(tchars.toLowerCase() === chars) {
@@ -2831,16 +2831,16 @@ const redesBase = function Redes() {
       }
     }
   }
-  const $_char=(re)=> {
+  const R$C=(re)=> {
   	return (S)=>{ 
       const char = S.text.charAt(S.pos);
       return re.test(char) && (S.pos++,[char]);
     }
   }
-  const $_dot=() =>{
+  const R$D=() =>{
   	return (S) => S.pos < S.text.length && [S.text.charAt(S.pos++)];
   }
-  const $_seq=(args,action) =>{
+  const R$Q=(args,action) =>{
   	return (S)=>{ 
       const pos=S.pos;
       const ret = {};
@@ -2868,7 +2868,7 @@ const redesBase = function Redes() {
       return [ret];
     }
   }
-  const $_or=(args)=> {
+  const R$O=(args)=> {
   	return (S)=>{ 
       for (const arg of args) {
       	const res = arg(S);
@@ -2877,39 +2877,39 @@ const redesBase = function Redes() {
       return false
     }
   }
-  const $_dollar=(arg)=> {
+  const R$T=(arg)=> {
   	return (S)=>{
     	const pos = S.pos;
       return arg(S) && [S.text.slice(pos,S.pos)];
     }
   }
-  const $_amp=(arg)=> {
+  const R$A=(arg)=> {
   	return (S)=>{
     	const pos = S.pos, res = arg(S);
       S.pos = pos;
       return res;
     }
   }
-  const $_bang=(arg)=> {
+  const R$B=(arg)=> {
   	return (S)=>{
     	const pos=S.pos, res = arg(S);
       S.pos = pos;
       return res ? false : [];
     }
   }
-  const $_plus=(arg) =>{
+  const R$P=(arg) =>{
   	return (S)=>{
       const ret=[]; var res;
       while(res=arg(S)) ret.push(res[0]);
       return ret.length && [ret];
     }   
   }
-  const $_maybe=(arg) =>{
+  const R$M=(arg) =>{
   	return (S)=>{
       return arg(S) || [];
     }   
   }
-  const $_star=(arg)=> {
+  const R$S=(arg)=> {
     return (S)=>{
       var ret=[], res;
       while(res=arg(S)) ret.push(res[0]);

@@ -48,13 +48,13 @@ module.exports = function Redes () {
   }
   
 
-  const $_literal = (chars="") => {
+  const R$L = (chars="") => {
   	return (S)=> (
         S.text.substr(S.pos,chars.length) === chars
         && (S.pos+=chars.length,[chars])
     )
   }
-  const $_iliteral= (chars)=> {
+  const R$I= (chars)=> {
   	return (S)=>{
       const tchars = S.text.substr(S.pos,chars.length)
       if(tchars.toLowerCase() === chars) {
@@ -63,16 +63,16 @@ module.exports = function Redes () {
       }
     }
   }
-  const $_char=(re)=> {
+  const R$C=(re)=> {
   	return (S)=>{ 
       const char = S.text.charAt(S.pos);
       return re.test(char) && (S.pos++,[char]);
     }
   }
-  const $_dot=() =>{
+  const R$D=() =>{
   	return (S) => S.pos < S.text.length && [S.text.charAt(S.pos++)];
   }
-  const $_seq=(args,action) =>{
+  const R$Q=(args,action) =>{
   	return (S)=>{ 
       const pos=S.pos;
       const ret = {};
@@ -100,7 +100,7 @@ module.exports = function Redes () {
       return [ret];
     }
   }
-  const $_or=(args)=> {
+  const R$O=(args)=> {
   	return (S)=>{ 
       for (const arg of args) {
       	const res = arg(S);
@@ -109,39 +109,39 @@ module.exports = function Redes () {
       return false
     }
   }
-  const $_dollar=(arg)=> {
+  const R$T=(arg)=> {
   	return (S)=>{
     	const pos = S.pos;
       return arg(S) && [S.text.slice(pos,S.pos)];
     }
   }
-  const $_amp=(arg)=> {
+  const R$A=(arg)=> {
   	return (S)=>{
     	const pos = S.pos, res = arg(S);
       S.pos = pos;
       return res;
     }
   }
-  const $_bang=(arg)=> {
+  const R$B=(arg)=> {
   	return (S)=>{
     	const pos=S.pos, res = arg(S);
       S.pos = pos;
       return res ? false : [];
     }
   }
-  const $_plus=(arg) =>{
+  const R$P=(arg) =>{
   	return (S)=>{
       const ret=[]; var res;
       while(res=arg(S)) ret.push(res[0]);
       return ret.length && [ret];
     }   
   }
-  const $_maybe=(arg) =>{
+  const R$M=(arg) =>{
   	return (S)=>{
       return arg(S) || [];
     }   
   }
-  const $_star=(arg)=> {
+  const R$S=(arg)=> {
     return (S)=>{
       var ret=[], res;
       while(res=arg(S)) ret.push(res[0]);

@@ -39,13 +39,13 @@ const redesParser = function Redes() {
   }
   
 
-  const $_literal = (chars="") => {
+  const R$L = (chars="") => {
   	return (S)=> (
         S.text.substr(S.pos,chars.length) === chars
         && (S.pos+=chars.length,[chars])
     )
   }
-  const $_iliteral= (chars)=> {
+  const R$I= (chars)=> {
   	return (S)=>{
       const tchars = S.text.substr(S.pos,chars.length)
       if(tchars.toLowerCase() === chars) {
@@ -54,16 +54,16 @@ const redesParser = function Redes() {
       }
     }
   }
-  const $_char=(re)=> {
+  const R$C=(re)=> {
   	return (S)=>{ 
       const char = S.text.charAt(S.pos);
       return re.test(char) && (S.pos++,[char]);
     }
   }
-  const $_dot=() =>{
+  const R$D=() =>{
   	return (S) => S.pos < S.text.length && [S.text.charAt(S.pos++)];
   }
-  const $_seq=(args,action) =>{
+  const R$Q=(args,action) =>{
   	return (S)=>{ 
       const pos=S.pos;
       const ret = {};
@@ -91,7 +91,7 @@ const redesParser = function Redes() {
       return [ret];
     }
   }
-  const $_or=(args)=> {
+  const R$O=(args)=> {
   	return (S)=>{ 
       for (const arg of args) {
       	const res = arg(S);
@@ -100,39 +100,39 @@ const redesParser = function Redes() {
       return false
     }
   }
-  const $_dollar=(arg)=> {
+  const R$T=(arg)=> {
   	return (S)=>{
     	const pos = S.pos;
       return arg(S) && [S.text.slice(pos,S.pos)];
     }
   }
-  const $_amp=(arg)=> {
+  const R$A=(arg)=> {
   	return (S)=>{
     	const pos = S.pos, res = arg(S);
       S.pos = pos;
       return res;
     }
   }
-  const $_bang=(arg)=> {
+  const R$B=(arg)=> {
   	return (S)=>{
     	const pos=S.pos, res = arg(S);
       S.pos = pos;
       return res ? false : [];
     }
   }
-  const $_plus=(arg) =>{
+  const R$P=(arg) =>{
   	return (S)=>{
       const ret=[]; var res;
       while(res=arg(S)) ret.push(res[0]);
       return ret.length && [ret];
     }   
   }
-  const $_maybe=(arg) =>{
+  const R$M=(arg) =>{
   	return (S)=>{
       return arg(S) || [];
     }   
   }
-  const $_star=(arg)=> {
+  const R$S=(arg)=> {
     return (S)=>{
       var ret=[], res;
       while(res=arg(S)) ret.push(res[0]);
@@ -162,24 +162,24 @@ const redesParser = function Redes() {
         return actionFn
     }
     const ops = {
-      'literal':  ({literal})    =>  `$_literal(${str(literal)})`,
-      'iliteral': ({literal})    =>  `$_iliteral(${str(literal)})`,
-      'match':  ({char})     =>  `$_char(/[${char}]/)`,
-      'imatch': ({char})     =>  `$_char(/[${char}]/i)`,
-      'dot':    ()           =>  `$_dot()`,
-      'dollar': ({child})    =>  `$_dollar(${proc(child)})`,
-      'star':   ({child})    =>  `$_star(${proc(child)})`,
-      'plus':   ({child})    =>  `$_plus(${proc(child)})`,
-      'maybe':  ({child})    =>  `$_maybe(${proc(child)})`,
-      'bang':   ({child})    =>  `$_bang(${proc(child)})`,
-      'amp':    ({child})    =>  `$_amp(${proc(child)})`,
+      'literal':  ({literal})    =>  `R$L(${str(literal)})`,
+      'iliteral': ({literal})    =>  `R$I(${str(literal)})`,
+      'match':  ({char})     =>  `R$C(/[${char}]/)`,
+      'imatch': ({char})     =>  `R$C(/[${char}]/i)`,
+      'dot':    ()           =>  `R$D()`,
+      'dollar': ({child})    =>  `R$T(${proc(child)})`,
+      'star':   ({child})    =>  `R$S(${proc(child)})`,
+      'plus':   ({child})    =>  `R$P(${proc(child)})`,
+      'maybe':  ({child})    =>  `R$M(${proc(child)})`,
+      'bang':   ({child})    =>  `R$B(${proc(child)})`,
+      'amp':    ({child})    =>  `R$A(${proc(child)})`,
       'rule':   ({rule})     =>  {
         //if (!ruleNames.includes(rule)) error( 'Unknown rule '+rule);
         ruleDeps[curRule][rule]=true;
-        if (compiledRules[rule]) return `comp_${rule}`;
-      	return `(comp_${rule}||rule_${rule})`
+        if (compiledRules[rule]) return `R$$_${rule}`;
+      	return `(R$$_${rule}||R$_${rule})`
        },
-      'or':     ({children}) =>  `$_or([${children.map(proc).join(',\n')}])`,
+      'or':     ({children}) =>  `R$O([${children.map(proc).join(',')}])`,
       'seq':    ({children,action}) => {
         var names = [];
         var args = children.map(({op,name,child})=>{
@@ -188,9 +188,9 @@ const redesParser = function Redes() {
           names.push(name);
           return `[${proc(child)},${str(name)}]`;
         })
-		if (!action) return `$_seq([${args.join(',\n')}])`;
+		if (!action) return `R$Q([${args.join(',')}])`;
         var fn = actionFn(names,action);
-        return `$_seq([${args.join(',\n')}],${fn})`;
+        return `R$Q([${args.join(',')}],${fn})`;
       },
       'grammar': ({intro,defs}) => {
       	ruleNames = defs.map(def=>def.name);
@@ -213,12 +213,12 @@ const redesParser = function Redes() {
           done[curRule] = true;
           if (!futureDep) {
             compiledRules[def.name] = true;
-            return `const comp_${def.name}=${procDef};`
+            return `const R$$_${def.name}=${procDef};`
           }
-  		    return `var comp_${def.name}; const rule_${def.name}=(S)=>(comp_${def.name}||(comp_${def.name}=\n${procDef}))(S)`
+  		    return `var R$$_${def.name}; const R$_${def.name}=(S)=>(R$$_${def.name}||(R$$_${def.name}=\n${procDef}))(S)`
         });
         //console.log(ruleDeps)
-        return `${intro||''}\n\n${rules.join('\n')}\nconst $_start=(comp_${ruleNames[0]}||rule_${ruleNames[0]})`;
+        return `${intro||''}\n\n${rules.join('\n')}\nconst $_start=(R$$_${ruleNames[0]}||R$_${ruleNames[0]})`;
       }
     };
     var curRule;
@@ -241,91 +241,29 @@ const redesParser = function Redes() {
     }
 
 
-const comp_ws=$_or([$_char(/[ \n\t\r]/),
-$_seq([[$_literal("//")],
-[$_star($_char(/[^\n]/))],
-[$_literal("\n")]]),
-$_seq([[$_literal("/*")],
-[$_star($_seq([[$_bang($_literal("*/"))],
-[$_dot()]]))],
-[$_literal("*/")]])]);
-const comp___=$_plus(comp_ws);
-const comp__=$_star(comp_ws);
-const comp_eol=$_or([$_plus($_seq([[comp__],
-[$_literal("\n")]])),
-$_seq([[comp__],
-[$_bang($_literal("."))]])]);
-const comp_ident=$_dollar($_plus($_seq([[$_char(/[a-z_]/i)],
-[$_star($_char(/[a-z0-9]/i))]])));
-var comp_template_chunk; const rule_template_chunk=(S)=>(comp_template_chunk||(comp_template_chunk=
-$_or([$_dollar($_literal("\\$")),
-$_dollar($_seq([[$_literal("$")],
-[(comp_block||rule_block)]])),
-$_dollar($_plus($_char(/[^$`]/))),
-$_seq([[$_literal("$")],
-[$_bang($_literal("{"))]])])))(S)
-const comp_template=$_dollar($_seq([[$_literal("`")],
-[$_star((comp_template_chunk||rule_template_chunk))],
-[$_literal("`")]]));
-var comp_block_chunk; const rule_block_chunk=(S)=>(comp_block_chunk||(comp_block_chunk=
-$_or([$_dollar($_plus($_char(/[^'"{}`]/))),
-$_dollar($_seq([[$_literal("'")],
-[$_star($_or([$_literal("\\'"),
-$_char(/[^\n']/)]))],
-[$_literal("'")]])),
-$_dollar($_seq([[$_literal("\"")],
-[$_star($_or([$_literal("\\\""),
-$_char(/[^\n"]/)]))],
-[$_literal("\"")]])),
-comp_template,
-$_dollar((comp_block||rule_block))])))(S)
-const comp_block=$_seq([[$_literal("{")],
-[comp__],
-[$_star((comp_block_chunk||rule_block_chunk)),"chunks"],
-[comp__],
-[$_literal("}")]],(state,{chunks})=>{return chunks.join('') });
-const comp_dot=$_seq([[$_literal("."),"dot"]],(state,{dot})=>{return {$:'dot'}
+const R$$_ws=R$O([R$C(/[ \n\t\r]/),R$Q([[R$L("//")],[R$S(R$C(/[^\n]/))],[R$L("\n")]]),R$Q([[R$L("/*")],[R$S(R$Q([[R$B(R$L("*/"))],[R$D()]]))],[R$L("*/")]])]);
+const R$$___=R$P(R$$_ws);
+const R$$__=R$S(R$$_ws);
+const R$$_eol=R$O([R$P(R$Q([[R$$__],[R$L("\n")]])),R$Q([[R$$__],[R$B(R$L("."))]])]);
+const R$$_ident=R$T(R$P(R$Q([[R$C(/[a-z_]/i)],[R$S(R$C(/[a-z0-9]/i))]])));
+var R$$_template_chunk; const R$_template_chunk=(S)=>(R$$_template_chunk||(R$$_template_chunk=
+R$O([R$T(R$L("\\$")),R$T(R$Q([[R$L("$")],[(R$$_block||R$_block)]])),R$T(R$P(R$C(/[^$`]/))),R$Q([[R$L("$")],[R$B(R$L("{"))]])])))(S)
+const R$$_template=R$T(R$Q([[R$L("`")],[R$S((R$$_template_chunk||R$_template_chunk))],[R$L("`")]]));
+var R$$_block_chunk; const R$_block_chunk=(S)=>(R$$_block_chunk||(R$$_block_chunk=
+R$O([R$T(R$P(R$C(/[^'"{}`]/))),R$T(R$Q([[R$L("'")],[R$S(R$O([R$L("\\'"),R$C(/[^\n']/)]))],[R$L("'")]])),R$T(R$Q([[R$L("\"")],[R$S(R$O([R$L("\\\""),R$C(/[^\n"]/)]))],[R$L("\"")]])),R$$_template,R$T((R$$_block||R$_block))])))(S)
+const R$$_block=R$Q([[R$L("{")],[R$$__],[R$S((R$$_block_chunk||R$_block_chunk)),"chunks"],[R$$__],[R$L("}")]],(state,{chunks})=>{return chunks.join('') });
+const R$$_dot=R$Q([[R$L("."),"dot"]],(state,{dot})=>{return {$:'dot'}
 });
-const comp_match=$_seq([[$_literal("[")],
-[$_dollar($_plus($_or([$_literal("\\]"),
-$_char(/[^\]]/)]))),"char"],
-[$_literal("]")],
-[$_maybe($_literal("i")),"i"]],(state,{char,i})=>{if (i) return {$:'imatch',char};
+const R$$_match=R$Q([[R$L("[")],[R$T(R$P(R$O([R$L("\\]"),R$C(/[^\]]/)]))),"char"],[R$L("]")],[R$M(R$L("i")),"i"]],(state,{char,i})=>{if (i) return {$:'imatch',char};
   return {$:'match',char}
 });
-const comp_hex=$_char(/[0-9A-Fa-f]/);
-const comp_special=$_or([$_seq([[$_literal("\\b"),"match"]],(state,{match})=>{return '\\u0008' }),
-$_seq([[$_literal("\\t"),"match"]],(state,{match})=>{return '\\u0009' }),
-$_literal("\\n"),
-$_seq([[$_literal("\\v"),"match"]],(state,{match})=>{return '\\u000B' }),
-$_seq([[$_literal("\\f"),"match"]],(state,{match})=>{return '\\u000C' }),
-$_seq([[$_literal("\\r"),"match"]],(state,{match})=>{return '\\u000D' }),
-$_seq([[$_literal("\\")],
-[$_seq([[comp_hex],
-[$_maybe(comp_hex)],
-[$_maybe(comp_hex)]]),"d"]],(state,{d})=>{return '\\u'+ d.join('').parseInt(8).toString(16).padStart(4,'0')}),
-$_seq([[$_literal("\\u")],
-[$_seq([[comp_hex],
-[comp_hex],
-[comp_hex],
-[comp_hex]]),"u"]],(state,{u})=>{return '\\u'+u.join(''); }),
-$_literal("\\\\")]);
-const comp_cliteral2=$_or([$_literal("\\\""),
-comp_special,
-$_char(/[^"]/)]);
-const comp_literal2=$_seq([[$_char(/[""]/)],
-[$_plus(comp_cliteral2),"literal"],
-[$_char(/[""]/)]],(state,{literal})=>{return literal.join('') });
-const comp_cliteral1=$_or([$_seq([[$_literal("\\'"),"match"]],(state,{match})=>{return "'" }),
-$_seq([[$_literal("\""),"match"]],(state,{match})=>{return '\\"' }),
-comp_special,
-$_char(/[^']/)]);
-const comp_literal1=$_seq([[$_char(/['']/)],
-[$_plus(comp_cliteral1),"literal"],
-[$_char(/['']/)]],(state,{literal})=>{return literal.join('') });
-const comp_literal=$_seq([[$_or([comp_literal1,
-comp_literal2]),"literal"],
-[$_maybe($_literal("i")),"i"]],(state,{literal,i})=>{try {
+const R$$_hex=R$C(/[0-9A-Fa-f]/);
+const R$$_special=R$O([R$Q([[R$L("\\b"),"match"]],(state,{match})=>{return '\\u0008' }),R$Q([[R$L("\\t"),"match"]],(state,{match})=>{return '\\u0009' }),R$L("\\n"),R$Q([[R$L("\\v"),"match"]],(state,{match})=>{return '\\u000B' }),R$Q([[R$L("\\f"),"match"]],(state,{match})=>{return '\\u000C' }),R$Q([[R$L("\\r"),"match"]],(state,{match})=>{return '\\u000D' }),R$Q([[R$L("\\")],[R$Q([[R$$_hex],[R$M(R$$_hex)],[R$M(R$$_hex)]]),"d"]],(state,{d})=>{return '\\u'+ d.join('').parseInt(8).toString(16).padStart(4,'0')}),R$Q([[R$L("\\u")],[R$Q([[R$$_hex],[R$$_hex],[R$$_hex],[R$$_hex]]),"u"]],(state,{u})=>{return '\\u'+u.join(''); }),R$L("\\\\")]);
+const R$$_cliteral2=R$O([R$L("\\\""),R$$_special,R$C(/[^"]/)]);
+const R$$_literal2=R$Q([[R$C(/[""]/)],[R$P(R$$_cliteral2),"literal"],[R$C(/[""]/)]],(state,{literal})=>{return literal.join('') });
+const R$$_cliteral1=R$O([R$Q([[R$L("\\'"),"match"]],(state,{match})=>{return "'" }),R$Q([[R$L("\""),"match"]],(state,{match})=>{return '\\"' }),R$$_special,R$C(/[^']/)]);
+const R$$_literal1=R$Q([[R$C(/['']/)],[R$P(R$$_cliteral1),"literal"],[R$C(/['']/)]],(state,{literal})=>{return literal.join('') });
+const R$$_literal=R$Q([[R$O([R$$_literal1,R$$_literal2]),"literal"],[R$M(R$L("i")),"i"]],(state,{literal,i})=>{try {
     let str = JSON.parse(`"${literal}"`)
     if (i) return {$:'iliteral',literal:str};
     return {$:'literal',literal:str};
@@ -333,104 +271,45 @@ comp_literal2]),"literal"],
     error(err);
   }
 });
-var comp_atom; const rule_atom=(S)=>(comp_atom||(comp_atom=
-$_or([comp_literal,
-comp_match,
-comp_dot,
-(comp_rule||rule_rule),
-$_seq([[$_literal("(")],
-[comp__],
-[(comp_or||rule_or),"or"],
-[comp__],
-[$_literal(")")]],(state,{or})=>{return or })])))(S)
-const comp_plus=$_seq([[(comp_atom||rule_atom),"child"],
-[comp__],
-[$_literal("+")]],(state,{child})=>{return {$:'plus',child}
+var R$$_atom; const R$_atom=(S)=>(R$$_atom||(R$$_atom=
+R$O([R$$_literal,R$$_match,R$$_dot,(R$$_rule||R$_rule),R$Q([[R$L("(")],[R$$__],[(R$$_or||R$_or),"or"],[R$$__],[R$L(")")]],(state,{or})=>{return or })])))(S)
+const R$$_plus=R$Q([[(R$$_atom||R$_atom),"child"],[R$$__],[R$L("+")]],(state,{child})=>{return {$:'plus',child}
 });
-const comp_star=$_seq([[(comp_atom||rule_atom),"child"],
-[comp__],
-[$_literal("*")]],(state,{child})=>{return {$:'star',child}
+const R$$_star=R$Q([[(R$$_atom||R$_atom),"child"],[R$$__],[R$L("*")]],(state,{child})=>{return {$:'star',child}
 });
-const comp_maybe=$_seq([[(comp_atom||rule_atom),"child"],
-[comp__],
-[$_literal("?")]],(state,{child})=>{return {$:'maybe',child}
+const R$$_maybe=R$Q([[(R$$_atom||R$_atom),"child"],[R$$__],[R$L("?")]],(state,{child})=>{return {$:'maybe',child}
 });
-const comp_rule=$_seq([[comp_ident,"rule"],
-[$_bang($_seq([[comp__],
-[$_maybe(comp_literal)],
-[comp__],
-[$_literal("=")]]))]],(state,{rule})=>{return {$:'rule',rule}; 
+const R$$_rule=R$Q([[R$$_ident,"rule"],[R$B(R$Q([[R$$__],[R$M(R$$_literal)],[R$$__],[R$L("=")]]))]],(state,{rule})=>{return {$:'rule',rule}; 
 });
-const comp_bit=$_or([comp_star,
-comp_plus,
-comp_maybe,
-(comp_atom||rule_atom)]);
-const comp_piece=$_or([$_seq([[$_literal("!")],
-[comp_bit,"child"]],(state,{child})=>{return {$:'bang',child}
-}),
-$_seq([[$_literal("&")],
-[comp_bit,"child"]],(state,{child})=>{return {$:'amp',child}
-}),
-$_seq([[$_literal("$")],
-[comp_bit,"child"]],(state,{child})=>{return {$:'dollar',child}
-}),
-comp_bit]);
-const comp_anon_chunk=$_seq([[comp_piece,"child"]],(state,{child})=>{return {child}
+const R$$_bit=R$O([R$$_star,R$$_plus,R$$_maybe,(R$$_atom||R$_atom)]);
+const R$$_piece=R$O([R$Q([[R$L("!")],[R$$_bit,"child"]],(state,{child})=>{return {$:'bang',child}
+}),R$Q([[R$L("&")],[R$$_bit,"child"]],(state,{child})=>{return {$:'amp',child}
+}),R$Q([[R$L("$")],[R$$_bit,"child"]],(state,{child})=>{return {$:'dollar',child}
+}),R$$_bit]);
+const R$$_anon_chunk=R$Q([[R$$_piece,"child"]],(state,{child})=>{return {child}
 });
-const comp_named_chunk=$_seq([[comp_ident,"name"],
-[comp__],
-[$_literal(":")],
-[comp__],
-[comp_piece,"child"]],(state,{name,child})=>{return {name,child}
+const R$$_named_chunk=R$Q([[R$$_ident,"name"],[R$$__],[R$L(":")],[R$$__],[R$$_piece,"child"]],(state,{name,child})=>{return {name,child}
 });
-var comp_predicate; const rule_predicate=(S)=>(comp_predicate||(comp_predicate=
-$_seq([[$_char(/[!&]/),"op"],
-[comp__],
-[(comp_action||rule_action),"child"]],(state,{op,child})=>{return {op,child} 
+var R$$_predicate; const R$_predicate=(S)=>(R$$_predicate||(R$$_predicate=
+R$Q([[R$C(/[!&]/),"op"],[R$$__],[(R$$_action||R$_action),"child"]],(state,{op,child})=>{return {op,child} 
 })))(S)
-const comp_chunk=$_or([comp_named_chunk,
-comp_anon_chunk,
-(comp_predicate||rule_predicate)]);
-const comp_action=$_seq([[comp__],
-[comp_block,"block"]],(state,{block})=>{return block });
-const comp_seq=$_or([$_seq([[$_or([$_seq([[comp_chunk,"head"],
-[$_plus($_seq([[comp___],
-[comp_chunk,"chunk"]],(state,{chunk})=>{return chunk })),"tail"]],(state,{head,tail})=>{return [head].concat(tail)}),
-$_seq([[comp_named_chunk,"chunk"]],(state,{chunk})=>{return [chunk] })]),"children"],
-[$_maybe(comp_action),"action"]],(state,{children,action})=>{return {$:'seq',children,action}
-}),
-$_seq([[comp_piece,"piece"],
-[comp_action,"action"]],(state,{piece,action})=>{return {$:'seq',children:[{name:'match',child:piece}],action};
-}),
-comp_piece]);
-const comp_or=$_seq([[comp_seq,"head"],
-[$_star($_seq([[comp__],
-[$_char(/[|/]/)],
-[comp__],
-[comp_seq,"seq"]],(state,{seq})=>{return seq })),"tail"]],(state,{head,tail})=>{if(!tail.length) return head;
+const R$$_chunk=R$O([R$$_named_chunk,R$$_anon_chunk,(R$$_predicate||R$_predicate)]);
+const R$$_action=R$Q([[R$$__],[R$$_block,"block"]],(state,{block})=>{return block });
+const R$$_seq=R$O([R$Q([[R$O([R$Q([[R$$_chunk,"head"],[R$P(R$Q([[R$$___],[R$$_chunk,"chunk"]],(state,{chunk})=>{return chunk })),"tail"]],(state,{head,tail})=>{return [head].concat(tail)}),R$Q([[R$$_named_chunk,"chunk"]],(state,{chunk})=>{return [chunk] })]),"children"],[R$M(R$$_action),"action"]],(state,{children,action})=>{return {$:'seq',children,action}
+}),R$Q([[R$$_piece,"piece"],[R$$_action,"action"]],(state,{piece,action})=>{return {$:'seq',children:[{name:'match',child:piece}],action};
+}),R$$_piece]);
+const R$$_or=R$Q([[R$$_seq,"head"],[R$S(R$Q([[R$$__],[R$C(/[|/]/)],[R$$__],[R$$_seq,"seq"]],(state,{seq})=>{return seq })),"tail"]],(state,{head,tail})=>{if(!tail.length) return head;
     return {$:'or',children:[head].concat(tail)};
 });
-const comp_def_head=$_seq([[comp_ident,"name"],
-[comp__],
-[$_maybe(comp_literal),"description"],
-[comp__],
-[$_literal("=")]],(state,{name,description})=>{return {name,description}
+const R$$_def_head=R$Q([[R$$_ident,"name"],[R$$__],[R$M(R$$_literal),"description"],[R$$__],[R$L("=")]],(state,{name,description})=>{return {name,description}
 });
-const comp_def=$_seq([[comp__],
-[comp_def_head,"head"],
-[comp__],
-[comp_or,"def"],
-[comp_eol]],(state,{head,def})=>{return {$:'def',name:head.name,def}
+const R$$_def=R$Q([[R$$__],[R$$_def_head,"head"],[R$$__],[R$$_or,"def"],[R$$_eol]],(state,{head,def})=>{return {$:'def',name:head.name,def}
 });
-const comp_grammar=$_seq([[$_maybe(comp_action),"intro"],
-[comp__],
-[$_plus(comp_def),"defs"]],(state,{intro,defs})=>{return {$:'grammar',intro,defs};
+const R$$_grammar=R$Q([[R$M(R$$_action),"intro"],[R$$__],[R$P(R$$_def),"defs"]],(state,{intro,defs})=>{return {$:'grammar',intro,defs};
 });
-const comp_proc=$_seq([[comp_grammar,"grammar"],
-[comp__],
-[$_bang($_dot())]],(state,{grammar})=>{return proc(grammar);
+const R$$_proc=R$Q([[R$$_grammar,"grammar"],[R$$__],[R$B(R$D())]],(state,{grammar})=>{return proc(grammar);
 });
-const $_start=(comp_proc||rule_proc)/*###SPLIT###*/
+const $_start=(R$$_proc||R$_proc)/*###SPLIT###*/
 
   return Parser;
 };
