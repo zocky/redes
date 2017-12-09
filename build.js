@@ -13,7 +13,8 @@ buildRedesPegWithPeg();
 buildRedesWithRedesPeg();
 buildRedesWithRedes();
 compareParsers();
-emptyDir(__dist);
+emptyDir(__dist+'/npm');
+emptyDir(__dist+'/browser');
 deployToDist();
 
 
@@ -77,9 +78,7 @@ function deployToDist() {
   let src = fs.readFileSync(__src+'/redes.tmpl.js','utf8');
   src = src.split("'###REDESPARSER###'").join(srcParser);
   let out = src.split("/*###EXPORT###*/").join('module.exports = ');
-  fs.writeFileSync(__dist+'/redes.js',out,'utf8');
-  out = src.split("/*###EXPORT###*/").join('export ');
-  fs.writeFileSync(__dist+'/redes-module.js',out,'utf8');
+  fs.writeFileSync(__dist+'/npm/redes.js',out,'utf8');
   out = src.split("/*###EXPORT###*/").join('(typeof global!=="undefined"?global:window).Redes = ');
-  fs.writeFileSync(__dist+'/redes-global.js',out,'utf8');
+  fs.writeFileSync(__dist+'/browser/redes.js',out,'utf8');
 }
