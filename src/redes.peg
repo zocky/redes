@@ -5,32 +5,9 @@
     }
 
 	function str (str) { return JSON.stringify(String(str)) ;}
-    const ops = {
-      'token':  ({token})    =>  `$_token(${str(token)})`,
-      'itoken': ({token})    =>  `$_itoken(${str(token)})`,
-      'match':  ({char})     =>  `$_char(/[${char}]/)`,
-      'imatch': ({char})     =>  `$_char(/[${char}]/i)`,
-      'dot':    ()           =>  `$_dot()`,
-      'dollar': ({child})    =>  `$_dollar(${proc(child)})`,
-      'star':   ({child})    =>  `$_star(${proc(child)})`,
-      'plus':   ({child})    =>  `$_plus(${proc(child)})`,
-      'maybe':  ({child})    =>  `$_maybe(${proc(child)})`,
-      'bang':   ({child})    =>  `$_bang(${proc(child)})`,
-      'amp':    ({child})    =>  `$_amp(${proc(child)})`,
-      'rule':   ({rule})     =>  {
-        if (!ruleNames.includes(rule)) error( 'Unknown rule '+rule);
-      	return `(comp_${rule}||rule_${rule})`
-       },
-      'or':     ({children}) =>  `$_or([${children.map(proc).join(',\n')}])`,
-      'seq':    ({children,action}) => {
-        var names = [];
-        var args = children.map(({name,child})=>{
-          if (!name) return `[${proc(child)}]`
-          names.push(name);
-          return `[${proc(child)},${str(name)}]`;
-        })
-		if (!action) return `$_seq([${args.join(',\n')}])`;
-        var actionArgs = `({${names.join(',')}})`;
+    
+    function actionFn(names,action) {
+     var actionArgs = `(state,{${names.join(',')}})`;
         try {
           var fn = new Function(`return(${action})`);
           var actionFn = `${actionArgs}=>(${action})`;
@@ -42,18 +19,72 @@
             throw err
           }
         }
-        return `$_seq([${args.join(', ')}],${actionFn})`;
-      },
-      'def':   ({name,def}) => {
-		return `var comp_${name}; const rule_${name}=(S)=>(comp_${name}||(comp_${name}=${proc(def)}))(S)`
+        return actionFn
+    }
+    const ops = {
+      'literal':  ({literal})    =>  `$_literal(${str(literal)})`,
+      'iliteral': ({literal})    =>  `$_iliteral(${str(literal)})`,
+      'match':  ({char})     =>  `$_char(/[${char}]/)`,
+      'imatch': ({char})     =>  `$_char(/[${char}]/i)`,
+      'dot':    ()           =>  `$_dot()`,
+      'dollar': ({child})    =>  `$_dollar(${proc(child)})`,
+      'star':   ({child})    =>  `$_star(${proc(child)})`,
+      'plus':   ({child})    =>  `$_plus(${proc(child)})`,
+      'maybe':  ({child})    =>  `$_maybe(${proc(child)})`,
+      'bang':   ({child})    =>  `$_bang(${proc(child)})`,
+      'amp':    ({child})    =>  `$_amp(${proc(child)})`,
+      'rule':   ({rule})     =>  {
+        //if (!ruleNames.includes(rule)) error( 'Unknown rule '+rule);
+        ruleDeps[curRule][rule]=true;
+        if (compiledRules[rule]) return `comp_${rule}`;
+      	return `(comp_${rule}||rule_${rule})`
+       },
+      'or':     ({children}) =>  `$_or([${children.map(proc).join(',\n')}])`,
+      'seq':    ({children,action}) => {
+        var names = [];
+        var args = children.map(({op,name,child})=>{
+          if (op) return `[${actionFn(names,child)},'${op}']`;
+          if (!name) return `[${proc(child)}]`
+          names.push(name);
+          return `[${proc(child)},${str(name)}]`;
+        })
+		if (!action) return `$_seq([${args.join(',\n')}])`;
+        var fn = actionFn(names,action);
+        return `$_seq([${args.join(',\n')}],${fn})`;
       },
       'grammar': ({intro,defs}) => {
       	ruleNames = defs.map(def=>def.name);
-        var rules = defs.map(proc);
-        return `${intro}\n\n${rules.join('\n')}\nconst $_start=rule_${defs[0].name}`;
+        defs.reverse();
+        ruleDeps = {};
+        var done = {};
+        compiledRules={};
+        var rules = defs.map(def=>{
+          curRule = def.name;
+          var curDeps = ruleDeps[curRule]={};
+          var procDef = proc(def.def);
+          
+          var futureDep = false;
+          for (var d in curDeps) {
+            if(!done[d]) {
+              futureDep = true;
+              break;
+            }
+          }
+          done[curRule] = true;
+          if (!futureDep) {
+            compiledRules[def.name] = true;
+            return `const comp_${def.name}=${procDef};`
+          }
+  		    return `var comp_${def.name}; const rule_${def.name}=(S)=>(comp_${def.name}||(comp_${def.name}=\n${procDef}))(S)`
+        });
+        //console.log(ruleDeps)
+        return `${intro||''}\n\n${rules.join('\n')}\nconst $_start=(comp_${ruleNames[0]}||rule_${ruleNames[0]})`;
       }
     };
+    var curRule;
+    var ruleDeps;
     var ruleNames;
+    var compiledRules;
     function proc(node) {
     	if (Array.isArray(node)) return node.map(n=>proc(n));
         if (!node || !node.$) return node;
@@ -82,8 +113,13 @@ grammar
 }
  
 def
-= _ name:ident _ "=" _ def:or eol {
-  return {$:'def',name,def}
+= _ head:def_head _ def:or eol {
+  return {$:'def',name:head.name,def}
+}
+
+def_head 
+= name:ident _ description:literal? _ "=" {
+  return {name,description}
 }
 
 or 
@@ -112,6 +148,12 @@ action = _ block:block { return block }
 chunk
 = named_chunk
 / anon_chunk
+/ predicate
+
+predicate
+= op:[!&] _ child:action {
+  return {op,child} 
+}
 
 named_chunk
 = name:ident _ ":" _ child:piece {
@@ -141,7 +183,7 @@ bit
 / atom
 
 rule
-=  !def rule:ident {
+= rule:ident !(_ literal? _ "=") {
 	return {$:'rule',rule}; 
 }
 
@@ -161,38 +203,54 @@ plus
 }
 
 atom
-= token
+= literal
 / match
 / dot
 / rule
 / "(" _ or:or _ ")" { return or }
 
-token
-= token:( token1 / token2 ) i:"i"? {
+literal
+= literal:( literal1 / literal2 ) i:"i"? {
   try {
-    let str = JSON.parse(`"${token}"`)
-    if (i) return {$:'itoken',token:str};
-    return {$:'token',token:str};
+    let str = JSON.parse(`"${literal}"`)
+    if (i) return {$:'iliteral',literal:str};
+    return {$:'literal',literal:str};
   } catch (err) {
     error(err);
   }
 }
 
-token1 
-= [''] token:ctoken1+ [''] { return token.join('') }
+literal1 
+= [''] literal:cliteral1+ [''] { return literal.join('') }
 
-ctoken1
+cliteral1
 = "\\'" { return "'" }
 / '"' { return '\\"' }
+/ special
 / [^']
 
-token2 
-= [""] token:ctoken2+ [""] { return token.join('') }
+literal2 
+= [""] literal:cliteral2+ [""] { return literal.join('') }
 
-ctoken2
-= '\\"' 
+cliteral2
+= '\\"'
+/ special
 / [^"]
 
+special
+= '\\b' { return '\\u0008' }
+/ '\\t' { return '\\u0009' }
+/ '\\n'
+/ '\\v' { return '\\u000B' }
+/ '\\f' { return '\\u000C' }
+/ '\\r' { return '\\u000D' }
+/ '\\' d:(hex hex? hex?) { return '\\u'+ d.join('').parseInt(8).toString(16).padStart(4,'0')}
+/ '\\u' u:(hex hex hex hex) { return '\\u'+u.join(''); }
+/ '\\\\'
+
+
+hex
+= [0-9A-Fa-f]
 
 match
 = "[" char:$(("\\]"/[^\]])+) "]" i:"i"? {
@@ -227,7 +285,12 @@ template_chunk
 ident
 = $([a-z_]i [a-z0-9]i*)+
 
-_ = [ \n\t\r]*
-__ = [ \n\t\r]+
-
 eol = (_ "\n") + / _ !"."
+_ = ws*
+__ = ws+
+
+ws 
+= [ \n\t\r]
+/ '//' [^\n]* "\n"
+/ '/*' (!'*/' .)* '*/'
+

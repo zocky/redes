@@ -26,13 +26,13 @@ module.exports = function redes () {
     return res[0];
   }
   
-  const $_token = (chars="") => {
+  const $_literal = (chars="") => {
   	return (S)=> (
         S.text.substr(S.pos,chars.length) === chars
         && (S.pos+=chars.length,[chars])
     )
   }
-  const $_itoken= (chars)=> {
+  const $_iliteral= (chars)=> {
   	return (S)=>{
       const tchars = S.text.substr(S.pos,chars.length)
       if(tchars.toLowerCase() === chars) {
@@ -54,12 +54,26 @@ module.exports = function redes () {
   	return (S)=>{ 
       const pos=S.pos;
       const ret = {};
-      for (const arg of args) {
-      	const res = arg[0](S);
-        if(!res) return (S.pos=pos,false);
-        if(arg[1]) ret[arg[1]] = res[0];
+      for (const [fn,name] of args) {
+        switch(name) {
+        case '!':
+          const bpos = S.pos;
+          const bres = fn(S,ret)
+          if (bres) return (S.pos=pos,false);  
+          S.pos = lpos; 
+          break;
+        case "&": 
+          const apos = S.pos;
+          const ares = fn(S,ret)
+          if (!ares) return (S.pos=pos,false);  
+          S.pos = apos; 
+        default:
+          const res = fn(S)
+          if(!res) return (S.pos=pos,false);
+          if(name) ret[name] = res[0];
+        }
       }
-      return action ? [action(ret)] : [ret];
+      return action ? [action(S,ret)] : [ret];
     }
   }
   const $_or=(args)=> {
