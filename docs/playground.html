@@ -19,8 +19,14 @@
       var grammarEditor = ace.edit("grammar");
 //      grammarEditor.setTheme("ace/theme/cobalt");
       grammarEditor.getSession().setMode("ace/mode/pegjs");
-
       var inputEditor = ace.edit("input");
+
+      try {
+        var saved = JSON.parse(localStorage.saved_my_grammar);
+        grammarEditor.getSession().setValue(saved.grammar);
+        inputEditor.getSession().setValue(saved.input);
+      } catch(err) {}
+      
 
       grammarEditor.on('change', _.debounce(grammarChange, 400));
       inputEditor.on('change', _.debounce(inputChange, 400));
@@ -32,9 +38,9 @@
           var now = window.performance.now();
           parser = Redes.Parser(grammar);
           var ellapsed = window.performance.now() - now;
-          inputChange();
           $('#grammar-msg').innerText = `OK (${ellapsed|0}ms)`;
           $('#grammar-error').innerText = '';
+          inputChange();
         } catch (error) {
           $('#grammar-msg').innerText = ``;
           $('#grammar-error').innerText = String(error);
@@ -44,6 +50,10 @@
       function inputChange() {
         var input = inputEditor.getValue();
         try {
+          localStorage.saved_my_grammar=JSON.stringify({
+            grammar: grammarEditor.getValue(),
+            input
+          })
           var now = window.performance.now();
           var result = parser.parse(input);
           var ellapsed = window.performance.now() - now;
@@ -90,14 +100,14 @@
 // Accepts expressions like "2 * (3 + 4)" and computes their value. 
 
 Expression 
-  = left:Term tail:(_ op:("+"/"-") _ right:Term)* { 
+  = left:Term tail:(_ op:("="/"-") _ right:Term)* { 
     tail.reduce( (res, {op,right}) =>  (
       op=='+' ? res+right : res-right
     ), left )
   } 
     
 Term 
-  = left:Factor tail:(_ op:("*"/"/") _ right:Factor)* { 
+  = left:Factor tail:(_ op:[*/] _ right:Factor)* { 
     tail.reduce( (res, {op,right}) =>  (
       op=='*' ? res*right : res/right
     ), left )
