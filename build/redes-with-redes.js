@@ -1,35 +1,35 @@
 'use strict';
 const redesParser = function Redes() {
-  const MAX_OPS = 100000;
-  const MAX_DEPTH = 1000;
+
   const Parser = {
     parse: R$PARSE
   }
 
-  function R$PARSE(text = "", {
-    ast = false,
-    loc = false
-  } = {}) {
-    var _pos = 0;
-    const _location = {
-      line: 1,
-      col: 1
-    };
-    const $state = {
-      get $loc() {
-        if (_pos !== state.pos) {
-          const lines = state.text.slice(0, state.pos).split(/\n/);
-          _location.line = lines.length + 1;
-          _location.column = lines[lines.length - 1].length + 1;
-          _pos = state.pos;
+
+  function R$PARSE(text = "", options) {
+
+    const loc_cache = [];
+    function get_loc(pos) {
+      if (!loc_cache[pos]) {
+        const parsedText = text.slice(0,pos);
+        const m = parsedText.match(/\n/g);
+        loc_cache[pos]= {
+          line: m ? m.length + 1 : 1,
+          column: parsedText.length - parsedText.lastIndexOf("\n")
         }
-        return _location;
+      }
+      return loc_cache[pos];
+    }
+  
+    const $state = {
+      get $location() {
+        return get_loc(state.pos);
       },
       get $line() {
-        return $state.$loc.line;
+        return $state.$location.line;
       },
-      get $col() {
-        return $state.$loc.col;
+      get $column() {
+        return $state.$location.column;
       }
     }
     const state = {
@@ -37,21 +37,17 @@ const redesParser = function Redes() {
       expecting: false,
       expect_pos: 0,
       max_pos: 0,
-      ast,
-      loc,
+      options,
       text,
       pos: 0,
       $: $state
     }
     var res = R$START(state);
     if (state.pos !== text.length) {
-      var parsedText = state.text.slice(0,state.max_pos);
-      var m = parsedText.match(/\n/g);
-      var line = m ? m.length + 1 : 1;
-      var col = parsedText.length - parsedText.lastIndexOf("\n");
+      var location = get_loc(state.max_pos);
       var found = JSON.stringify(state.text.substr(state.max_pos,8));
       var expected = {}; state.expected.forEach(e=>expected[e]=true); expected=Object.keys(expected);
-      throw new Error(`Syntax error at line ${line}, column ${col}]. Found ${found}, expected one of ${expected}`)
+      throw new Error(`Syntax error at line ${location.line}, column ${location.column}. Found ${found}, expected one of ${expected}`)
     }
     return res[0];
   }
@@ -124,7 +120,7 @@ const redesParser = function Redes() {
             const bpos = S.pos;
             const bres = fn(S, ret)
             if (bres) return (S.pos = pos, false);
-            S.pos = lpos;
+            S.pos = bpos;
             break;
           case "&":
             const apos = S.pos;
@@ -138,7 +134,7 @@ const redesParser = function Redes() {
         }
       }
       if (!S.ast && action) return [action(S.$, ret)];
-      if (S.loc) ret.$loc = S.$.$loc;
+      if (S.location) ret.$location = S.$.$location;
       return [ret];
     }
   }

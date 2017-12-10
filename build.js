@@ -81,4 +81,5 @@ function deployToDist() {
   fs.writeFileSync(__dist+'/npm/redes.js',out,'utf8');
   out = src.split("/*###EXPORT###*/").join('(typeof global!=="undefined"?global:window).Redes = ');
   fs.writeFileSync(__dist+'/browser/redes.js',out,'utf8');
+  fs.writeFileSync(__dirname+'/docs/redes.js',out,'utf8');
 }
