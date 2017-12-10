@@ -26,7 +26,7 @@
       box-shadow:0 0 0 1px #ddd inset;
       border:solid 1px #ddd;
   }
-  #grammar-error {
+  #grammar-error, #input-error {
     padding:8px;
     font-family:monospace;
     font-size:14px;
@@ -46,7 +46,7 @@
   #output { 
       margin:0;
       background:#eee;
-      flex:1;
+      flex:1 1;
       padding:8px;
       font-size:16px;
       line-height:140%;
@@ -838,7 +838,7 @@
       var result = parser.parse(input);
       document.getElementById('output').innerHTML = JSON.stringify(result,null,2)
     } catch(error) {
-      console.log(error);
+      document.getElementById('input-error').innerText=String(error);
     }
   }
   
