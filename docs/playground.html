@@ -15,7 +15,7 @@
     display:flex;
   }
   #left, #right {
-    flex:1;
+    width:50%;
     display:flex;
     flex-flow:column;
   }
@@ -62,6 +62,8 @@
       font-size:16px;
       line-height:140%;
       border:solid 1px #ddd;
+      overflow:auto;
+      white-space:pre-wrap;
   }
   </style><script type="text/javascript" id="dev-js-main">define("ace/mode/matching_brace_outdent",["require","exports","module","ace/range"], function(require, exports, module) {
   "use strict";
