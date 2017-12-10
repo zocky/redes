@@ -33,7 +33,7 @@ const redesParser = function Redes() {
       }
     }
     const state = {
-      expected: {},
+      expected: [],
       expecting: false,
       expect_pos: 0,
       max_pos: 0,
@@ -50,8 +50,8 @@ const redesParser = function Redes() {
       var line = m ? m.length + 1 : 1;
       var col = parsedText.length - parsedText.lastIndexOf("\n");
       var found = JSON.stringify(state.text.substr(state.max_pos,8));
-      var expected = Object.keys(state.expected);
-      throw new Error(`Syntax error at line ${line}, column ${col}]. Found ${found}, expected one of ${state.expected}`)
+      var expected = {}; state.expected.forEach(e=>expected[e]=true); expected=Object.keys(expected);
+      throw new Error(`Syntax error at line ${line}, column ${col}]. Found ${found}, expected one of ${expected}`)
     }
     return res[0];
   }
@@ -64,13 +64,13 @@ const redesParser = function Redes() {
       S.expecting = false;
       if (res) {
         if (S.pos > S.max_pos) {
-          S.expected = {};
+          S.expected = [];
           S.max_pos = S.pos;
         }
         return res;
       } else {
         if (S.pos === S.max_pos) {
-          S.expected[expect]=true;
+          S.expected.push(expect);
         }
         return false;
       }
@@ -82,13 +82,13 @@ const redesParser = function Redes() {
     if (test) {
       S.pos += len;
       if (S.pos > S.max_pos) {
-        S.expected = {};
+        S.expected = [];
         S.max_pos = S.pos;
       }
       return [res];
     } else {
       if (S.pos === S.max_pos) {
-        S.expected[expect]=true;
+        S.expected.push(expect);
       }
       return false;
     }
