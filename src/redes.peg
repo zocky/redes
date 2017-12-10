@@ -62,7 +62,7 @@
           curRule = def.name;
           var curDeps = ruleDeps[curRule]={};
           var procDef = proc(def.def);
-          
+          if (def.expect) procDef = `R$X(${str(def.expect)},${procDef})`
           var futureDep = false;
           for (var d in curDeps) {
             if(!done[d]) {
@@ -114,12 +114,12 @@ grammar
  
 def
 = _ head:def_head _ def:or eol {
-  return {$:'def',name:head.name,def}
+  return {$:'def',name:head.name,def,expect:head.expect}
 }
 
 def_head 
-= name:ident _ description:literal? _ "=" {
-  return {name,description}
+= name:ident _ expect:string? _ "=" {
+  return {name,expect}
 }
 
 or 
@@ -143,25 +143,26 @@ seq
 }
 / piece 
 
-action = _ block:block { return block }
+action "action"
+= _ block:block { return block }
 
-chunk
+chunk 
 = named_chunk
 / anon_chunk
 / predicate
 
-predicate
+predicate "predicate"
 = op:[!&] _ child:action {
   return {op,child} 
 }
 
-named_chunk
+named_chunk "named chunk"
 = name:ident _ ":" _ child:piece {
 	return {name,child}
 }
 
-anon_chunk =
-child: piece {
+anon_chunk "anon chunk"
+= child: piece {
 	return {child}
 }
 
@@ -176,6 +177,7 @@ piece
     return {$:'dollar',child}
 }
 / bit 
+
 bit
 = star
 / plus
@@ -209,8 +211,8 @@ atom
 / rule
 / "(" _ or:or _ ")" { return or }
 
-literal
-= literal:( literal1 / literal2 ) i:"i"? {
+literal "literal"
+= literal:string i:"i"? {
   try {
     let str = JSON.parse(`"${literal}"`)
     if (i) return {$:'iliteral',literal:str};
@@ -219,6 +221,9 @@ literal
     error(err);
   }
 }
+
+string
+= literal1/literal2
 
 literal1 
 = [''] literal:cliteral1+ [''] { return literal.join('') }
@@ -252,18 +257,18 @@ special
 hex
 = [0-9A-Fa-f]
 
-match
+match "match"
 = "[" char:$(("\\]"/[^\]])+) "]" i:"i"? {
   if (i) return {$:'imatch',char};
   return {$:'match',char}
 }
 
-dot
+dot "dot"
 = dot:"." { 
   return {$:'dot'}
 }
 
-block 
+block
 = "{" _ chunks:block_chunk* _ "}" { return chunks.join('') }
 
 block_chunk

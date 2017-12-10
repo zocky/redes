@@ -42,7 +42,7 @@ const redesParser = function Redes() {
 
   const R$X = (expect,child) => {
     return (S) => {
-      var res=child;
+      var res=child(S);
       if (res && S.pos > S.expect_pos) {
         S.expected = [];
         S.expect_pos = S.pos
@@ -216,7 +216,7 @@ const redesParser = function Redes() {
           curRule = def.name;
           var curDeps = ruleDeps[curRule]={};
           var procDef = proc(def.def);
-          
+          if (def.expect) procDef = `R$X(${str(def.expect)},${procDef})`
           var futureDep = false;
           for (var d in curDeps) {
             if(!done[d]) {
@@ -266,25 +266,26 @@ const R$$_template=R$T(R$Q([[R$L("`")],[R$S((R$$_template_chunk||R$_template_chu
 var R$$_block_chunk; const R$_block_chunk=(S)=>(R$$_block_chunk||(R$$_block_chunk=
 R$O([R$T(R$P(R$C(/[^'"{}`]/))),R$T(R$Q([[R$L("'")],[R$S(R$O([R$L("\\'"),R$C(/[^\n']/)]))],[R$L("'")]])),R$T(R$Q([[R$L("\"")],[R$S(R$O([R$L("\\\""),R$C(/[^\n"]/)]))],[R$L("\"")]])),R$$_template,R$T((R$$_block||R$_block))])))(S)
 const R$$_block=R$Q([[R$L("{")],[R$$__],[R$S((R$$_block_chunk||R$_block_chunk)),"chunks"],[R$$__],[R$L("}")]],(state,{chunks})=>{return chunks.join('') });
-const R$$_dot=R$Q([[R$L("."),"dot"]],(state,{dot})=>{return {$:'dot'}
-});
-const R$$_match=R$Q([[R$L("[")],[R$T(R$P(R$O([R$L("\\]"),R$C(/[^\]]/)]))),"char"],[R$L("]")],[R$M(R$L("i")),"i"]],(state,{char,i})=>{if (i) return {$:'imatch',char};
+const R$$_dot=R$X("dot",R$Q([[R$L("."),"dot"]],(state,{dot})=>{return {$:'dot'}
+}));
+const R$$_match=R$X("match",R$Q([[R$L("[")],[R$T(R$P(R$O([R$L("\\]"),R$C(/[^\]]/)]))),"char"],[R$L("]")],[R$M(R$L("i")),"i"]],(state,{char,i})=>{if (i) return {$:'imatch',char};
   return {$:'match',char}
-});
+}));
 const R$$_hex=R$C(/[0-9A-Fa-f]/);
 const R$$_special=R$O([R$Q([[R$L("\\b"),"match"]],(state,{match})=>{return '\\u0008' }),R$Q([[R$L("\\t"),"match"]],(state,{match})=>{return '\\u0009' }),R$L("\\n"),R$Q([[R$L("\\v"),"match"]],(state,{match})=>{return '\\u000B' }),R$Q([[R$L("\\f"),"match"]],(state,{match})=>{return '\\u000C' }),R$Q([[R$L("\\r"),"match"]],(state,{match})=>{return '\\u000D' }),R$Q([[R$L("\\")],[R$Q([[R$$_hex],[R$M(R$$_hex)],[R$M(R$$_hex)]]),"d"]],(state,{d})=>{return '\\u'+ d.join('').parseInt(8).toString(16).padStart(4,'0')}),R$Q([[R$L("\\u")],[R$Q([[R$$_hex],[R$$_hex],[R$$_hex],[R$$_hex]]),"u"]],(state,{u})=>{return '\\u'+u.join(''); }),R$L("\\\\")]);
 const R$$_cliteral2=R$O([R$L("\\\""),R$$_special,R$C(/[^"]/)]);
 const R$$_literal2=R$Q([[R$C(/[""]/)],[R$P(R$$_cliteral2),"literal"],[R$C(/[""]/)]],(state,{literal})=>{return literal.join('') });
 const R$$_cliteral1=R$O([R$Q([[R$L("\\'"),"match"]],(state,{match})=>{return "'" }),R$Q([[R$L("\""),"match"]],(state,{match})=>{return '\\"' }),R$$_special,R$C(/[^']/)]);
 const R$$_literal1=R$Q([[R$C(/['']/)],[R$P(R$$_cliteral1),"literal"],[R$C(/['']/)]],(state,{literal})=>{return literal.join('') });
-const R$$_literal=R$Q([[R$O([R$$_literal1,R$$_literal2]),"literal"],[R$M(R$L("i")),"i"]],(state,{literal,i})=>{try {
+const R$$_string=R$O([R$$_literal1,R$$_literal2]);
+const R$$_literal=R$X("literal",R$Q([[R$$_string,"literal"],[R$M(R$L("i")),"i"]],(state,{literal,i})=>{try {
     let str = JSON.parse(`"${literal}"`)
     if (i) return {$:'iliteral',literal:str};
     return {$:'literal',literal:str};
   } catch (err) {
     error(err);
   }
-});
+}));
 var R$$_atom; const R$_atom=(S)=>(R$$_atom||(R$$_atom=
 R$O([R$$_literal,R$$_match,R$$_dot,(R$$_rule||R$_rule),R$Q([[R$L("(")],[R$$__],[(R$$_or||R$_or),"or"],[R$$__],[R$L(")")]],(state,{or})=>{return or })])))(S)
 const R$$_plus=R$Q([[(R$$_atom||R$_atom),"child"],[R$$__],[R$L("+")]],(state,{child})=>{return {$:'plus',child}
@@ -300,24 +301,24 @@ const R$$_piece=R$O([R$Q([[R$L("!")],[R$$_bit,"child"]],(state,{child})=>{return
 }),R$Q([[R$L("&")],[R$$_bit,"child"]],(state,{child})=>{return {$:'amp',child}
 }),R$Q([[R$L("$")],[R$$_bit,"child"]],(state,{child})=>{return {$:'dollar',child}
 }),R$$_bit]);
-const R$$_anon_chunk=R$Q([[R$$_piece,"child"]],(state,{child})=>{return {child}
-});
-const R$$_named_chunk=R$Q([[R$$_ident,"name"],[R$$__],[R$L(":")],[R$$__],[R$$_piece,"child"]],(state,{name,child})=>{return {name,child}
-});
+const R$$_anon_chunk=R$X("anon chunk",R$Q([[R$$_piece,"child"]],(state,{child})=>{return {child}
+}));
+const R$$_named_chunk=R$X("named chunk",R$Q([[R$$_ident,"name"],[R$$__],[R$L(":")],[R$$__],[R$$_piece,"child"]],(state,{name,child})=>{return {name,child}
+}));
 var R$$_predicate; const R$_predicate=(S)=>(R$$_predicate||(R$$_predicate=
-R$Q([[R$C(/[!&]/),"op"],[R$$__],[(R$$_action||R$_action),"child"]],(state,{op,child})=>{return {op,child} 
-})))(S)
+R$X("predicate",R$Q([[R$C(/[!&]/),"op"],[R$$__],[(R$$_action||R$_action),"child"]],(state,{op,child})=>{return {op,child} 
+}))))(S)
 const R$$_chunk=R$O([R$$_named_chunk,R$$_anon_chunk,(R$$_predicate||R$_predicate)]);
-const R$$_action=R$Q([[R$$__],[R$$_block,"block"]],(state,{block})=>{return block });
+const R$$_action=R$X("action",R$Q([[R$$__],[R$$_block,"block"]],(state,{block})=>{return block }));
 const R$$_seq=R$O([R$Q([[R$O([R$Q([[R$$_chunk,"head"],[R$P(R$Q([[R$$___],[R$$_chunk,"chunk"]],(state,{chunk})=>{return chunk })),"tail"]],(state,{head,tail})=>{return [head].concat(tail)}),R$Q([[R$$_named_chunk,"chunk"]],(state,{chunk})=>{return [chunk] })]),"children"],[R$M(R$$_action),"action"]],(state,{children,action})=>{return {$:'seq',children,action}
 }),R$Q([[R$$_piece,"piece"],[R$$_action,"action"]],(state,{piece,action})=>{return {$:'seq',children:[{name:'match',child:piece}],action};
 }),R$$_piece]);
 const R$$_or=R$Q([[R$$_seq,"head"],[R$S(R$Q([[R$$__],[R$C(/[|/]/)],[R$$__],[R$$_seq,"seq"]],(state,{seq})=>{return seq })),"tail"]],(state,{head,tail})=>{if(!tail.length) return head;
     return {$:'or',children:[head].concat(tail)};
 });
-const R$$_def_head=R$Q([[R$$_ident,"name"],[R$$__],[R$M(R$$_literal),"description"],[R$$__],[R$L("=")]],(state,{name,description})=>{return {name,description}
+const R$$_def_head=R$Q([[R$$_ident,"name"],[R$$__],[R$M(R$$_string),"expect"],[R$$__],[R$L("=")]],(state,{name,expect})=>{return {name,expect}
 });
-const R$$_def=R$Q([[R$$__],[R$$_def_head,"head"],[R$$__],[R$$_or,"def"],[R$$_eol]],(state,{head,def})=>{return {$:'def',name:head.name,def}
+const R$$_def=R$Q([[R$$__],[R$$_def_head,"head"],[R$$__],[R$$_or,"def"],[R$$_eol]],(state,{head,def})=>{return {$:'def',name:head.name,def,expect:head.expect}
 });
 const R$$_grammar=R$Q([[R$M(R$$_action),"intro"],[R$$__],[R$P(R$$_def),"defs"]],(state,{intro,defs})=>{return {$:'grammar',intro,defs};
 });
