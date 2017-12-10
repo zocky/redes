@@ -78,16 +78,15 @@ const redesParser = function Redes() {
   }
 
   const R$ADV = (S,test,res,len,expect) => {
-    if (S.exoecting) return res && [res];
     if (test) {
       S.pos += len;
-      if (S.pos > S.max_pos) {
+      if (!S.expecting && S.pos > S.max_pos) {
         S.expected = [];
         S.max_pos = S.pos;
       }
       return [res];
     } else {
-      if (S.pos === S.max_pos) {
+      if (!S.expecting && S.pos === S.max_pos) {
         S.expected.push(expect);
       }
       return false;
