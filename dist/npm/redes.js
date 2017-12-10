@@ -35,7 +35,7 @@ const redesParser = function Redes() {
     }
     var res = R$START(state);
     if (state.pos!==text.length) {
-      throw new Error(`Syntax error at [${$state.$line}:${$state.$col}]: ${text.substr(text,20)}, expected one of ${state.expect}`)
+      throw new Error(`Syntax error at [${$state.$line}:${$state.$col}]: ${text.substr(text,20)}, expected one of ${state.expected}`)
     }
     return res[0];
   }
