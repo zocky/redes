@@ -25,6 +25,8 @@ const redesParser = function Redes() {
       }
     }
     const state = {
+      expected:[],
+      expect_pos:0,
       ast,
       loc,
       text,
@@ -33,11 +35,23 @@ const redesParser = function Redes() {
     }
     var res = R$START(state);
     if (state.pos!==text.length) {
-      throw new Error(`Syntax error at [${$state.$line}:${$state.$col}]: ${text.substr(text,20)}`)
+      throw new Error(`Syntax error at [${$state.$line}:${$state.$col}]: ${text.substr(text,20)}, expected one of ${state.expect}`)
     }
     return res[0];
   }
-  
+
+  const R$X = (expect,child) => {
+    return (S) => {
+      var res=child;
+      if (res) {
+        S.expected = [];
+        S.expect_pos = S.pos
+      } else {
+        S.expected.push(expect);
+      }
+      return res;
+    }
+  }
 
   const R$L = (chars="") => {
   	return (S)=> (
