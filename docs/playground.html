@@ -34,7 +34,7 @@
     font-weight:bold;
     background:#fc8;
   }
-  #grammar-error, #input-error {
+  #grammar-msg, #input-msg {
     padding:8px;
     font-family:monospace;
     font-size:14px;
@@ -846,6 +846,7 @@
       $('#grammar-msg').innerText=`OK (${ellapsed|0}ms)`;
       $('#grammar-error').innerText='';
     } catch(error) {
+      $('#grammar-msg').innerText=``;
       $('#grammar-error').innerText=String(error);
     }
   }
@@ -860,6 +861,7 @@
       $('#input-msg').innerText=`OK (${ellapsed|0}ms)`;
       $('#input-error').innerText='';
     } catch(error) {
+      $('#input-msg').innerText=``;
       $('#input-error').innerText=String(error);
     }
   }
