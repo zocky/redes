@@ -2,18 +2,26 @@
 const redesParser = function Redes() {
   const MAX_OPS = 100000;
   const MAX_DEPTH = 1000;
-  const Parser = {parse:R$PARSE}
+  const Parser = {
+    parse: R$PARSE
+  }
 
-  function R$PARSE(text="",{ast=false,loc=false}={}) {
+  function R$PARSE(text = "", {
+    ast = false,
+    loc = false
+  } = {}) {
     var _pos = 0;
-    const _location={line:1,col:1};
-    const $state = { 
+    const _location = {
+      line: 1,
+      col: 1
+    };
+    const $state = {
       get $loc() {
-        if (_pos!==state.pos) {
-          const lines = state.text.slice(0,state.pos).split(/\n/);
-          _location.line = lines.length+1;
-          _location.column = lines[lines.length-1].length+1;
-          _pos=state.pos;
+        if (_pos !== state.pos) {
+          const lines = state.text.slice(0, state.pos).split(/\n/);
+          _location.line = lines.length + 1;
+          _location.column = lines[lines.length - 1].length + 1;
+          _pos = state.pos;
         }
         return _location;
       },
@@ -25,8 +33,10 @@ const redesParser = function Redes() {
       }
     }
     const state = {
-      expected:[],
-      expect_pos:0,
+      expected: [],
+      expecting: false,
+      expect_pos: 0,
+      max_pos: 0,
       ast,
       loc,
       text,
@@ -34,126 +44,154 @@ const redesParser = function Redes() {
       $: $state
     }
     var res = R$START(state);
-    if (state.pos!==text.length) {
-      throw new Error(`Syntax error at [${$state.$line}:${$state.$col}]: ${text.substr(text,20)}, expected one of ${state.expected}`)
+    if (state.pos !== text.length) {
+      var lines = state.text.slice(0,state.max_pos);
+      var line = lines.length, column=lines.pop().length+1;
+      throw new Error(`Syntax error at line ${line}, column ${column}]. Found ${text.substr(S.max_pos,10).split(/\s/).shift()}, expected one of ${state.expected}`)
     }
     return res[0];
   }
 
-  const R$X = (expect,child) => {
+  const R$X = (expect, child) => {
     return (S) => {
-      var res=child(S);
-      if (res && S.pos > S.expect_pos) {
-        S.expected = [];
-        S.expect_pos = S.pos
+      if (S.expecting) return child(S);
+      S.expecting = true;
+      const res = child(S);
+      S.expecting = false;
+      if (res) {
+        if (S.pos > S.max_pos) {
+          S.expected = [];
+          S.max_pos = S.pos;
+        }
+        return res;
       } else {
-        S.expected.push(expect);
+        if (S.pos === S.max_pos) {
+          S.expected.push(expect);
+        }
+        return false;
       }
-      return res;
     }
   }
 
-  const R$L = (chars="") => {
-  	return (S)=> (
-        S.text.substr(S.pos,chars.length) === chars
-        && (S.pos+=chars.length,[chars])
-    )
-  }
-  const R$I= (chars)=> {
-  	return (S)=>{
-      const tchars = S.text.substr(S.pos,chars.length)
-      if(tchars.toLowerCase() === chars) {
-        S.pos+=chars.length;
-        return ([tchars]);
+  const R$ADV = (S,test,res,len,expect) => {
+    if (S.exoecting) return res && [res];
+    if (test) {
+      S.pos += len;
+      if (S.pos > S.max_pos) {
+        S.expected = [];
+        S.max_pos = S.pos;
       }
+      return [res];
+    } else {
+      if (S.pos === S.max_pos) {
+        S.expected.push(expect);
+      }
+      return false;
     }
   }
-  const R$C=(re)=> {
-  	return (S)=>{ 
+
+  const R$L = (chars = "") => {
+    return (S) => {
+      var testChars = S.text.substr(S.pos, chars.length);
+      return R$ADV(S, testChars === chars,chars,chars.length,chars);
+    }
+  }
+  const R$I = (chars) => {
+    return (S) => {
+      var testChars = S.text.substr(S.pos, chars.length).toLowerCase();
+      return R$ADV(S, testChars === chars,chars,chars.length,chars);
+    }
+  }
+  const R$C = (re) => {
+    return (S) => {
       const char = S.text.charAt(S.pos);
-      return re.test(char) && (S.pos++,[char]);
+      return R$ADV(S, re.test(char),char,1,re.source);
     }
   }
-  const R$D=() =>{
-  	return (S) => S.pos < S.text.length && [S.text.charAt(S.pos++)];
+  const R$D = () => {
+    return (S)=>R$ADV(S, S.pos < S.text.length,S.text.charAt(S.pos),1,'any char');
   }
-  const R$Q=(args,action) =>{
-  	return (S)=>{ 
-      const pos=S.pos;
+  const R$Q = (args, action) => {
+    return (S) => {
+      const pos = S.pos;
       const ret = {};
-      for (const [fn,name] of args) {
-        switch(name) {
-        case '!':
-          const bpos = S.pos;
-          const bres = fn(S,ret)
-          if (bres) return (S.pos=pos,false);  
-          S.pos = lpos; 
-          break;
-        case "&": 
-          const apos = S.pos;
-          const ares = fn(S,ret)
-          if (!ares) return (S.pos=pos,false);  
-          S.pos = apos; 
-        default:
-          const res = fn(S)
-          if(!res) return (S.pos=pos,false);
-          if(name) ret[name] = res[0];
+      for (const [fn, name] of args) {
+        switch (name) {
+          case '!':
+            const bpos = S.pos;
+            const bres = fn(S, ret)
+            if (bres) return (S.pos = pos, false);
+            S.pos = lpos;
+            break;
+          case "&":
+            const apos = S.pos;
+            const ares = fn(S, ret)
+            if (!ares) return (S.pos = pos, false);
+            S.pos = apos;
+          default:
+            const res = fn(S)
+            if (!res) return (S.pos = pos, false);
+            if (name) ret[name] = res[0];
         }
       }
-      if (!S.ast && action) return [action(S.$,ret)];
-      if(S.loc) ret.$loc = S.$.$loc;
+      if (!S.ast && action) return [action(S.$, ret)];
+      if (S.loc) ret.$loc = S.$.$loc;
       return [ret];
     }
   }
-  const R$O=(args)=> {
-  	return (S)=>{ 
+  const R$O = (args) => {
+    return (S) => {
       for (const arg of args) {
-      	const res = arg(S);
+        const res = arg(S);
         if (res) return (res);
       }
       return false
     }
   }
-  const R$T=(arg)=> {
-  	return (S)=>{
-    	const pos = S.pos;
-      return arg(S) && [S.text.slice(pos,S.pos)];
+  const R$T = (arg) => {
+    return (S) => {
+      const pos = S.pos;
+      return arg(S) && [S.text.slice(pos, S.pos)];
     }
   }
-  const R$A=(arg)=> {
-  	return (S)=>{
-    	const pos = S.pos, res = arg(S);
+  const R$A = (arg) => {
+    return (S) => {
+      const pos = S.pos,
+        res = arg(S);
       S.pos = pos;
       return res;
     }
   }
-  const R$B=(arg)=> {
-  	return (S)=>{
-    	const pos=S.pos, res = arg(S);
+  const R$B = (arg) => {
+    return (S) => {
+      const pos = S.pos,
+        res = arg(S);
       S.pos = pos;
       return res ? false : [];
     }
   }
-  const R$P=(arg) =>{
-  	return (S)=>{
-      const ret=[]; var res;
-      while(res=arg(S)) ret.push(res[0]);
+  const R$P = (arg) => {
+    return (S) => {
+      const ret = [];
+      var res;
+      while (res = arg(S)) ret.push(res[0]);
       return ret.length && [ret];
-    }   
+    }
   }
-  const R$M=(arg) =>{
-  	return (S)=>{
+  const R$M = (arg) => {
+    return (S) => {
       return arg(S) || [];
-    }   
+    }
   }
-  const R$S=(arg)=> {
-    return (S)=>{
-      var ret=[], res;
-      while(res=arg(S)) ret.push(res[0]);
+  const R$S = (arg) => {
+    return (S) => {
+      var ret = [],
+        res;
+      while (res = arg(S)) ret.push(res[0]);
       return [ret];
-    }   
+    }
   }
-  
+
   /*###SPLIT###*/function indent (t) {
     	return "\n  "+t.replace(/\n/g,'\n  ')+"\n";
     }
