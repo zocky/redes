@@ -2,9 +2,9 @@
 const redesParser = function Redes() {
   const MAX_OPS = 100000;
   const MAX_DEPTH = 1000;
-  const Parser = {parse:$_parse}
+  const Parser = {parse:R$PARSE}
 
-  function $_parse(text="",{ast=false,loc=false}={}) {
+  function R$PARSE(text="",{ast=false,loc=false}={}) {
     var _pos = 0;
     const _location={line:1,col:1};
     const $state = { 
@@ -18,10 +18,10 @@ const redesParser = function Redes() {
         return _location;
       },
       get $line() {
-        return $state.$location.line;
+        return $state.$loc.line;
       },
       get $col() {
-        return $state.$location.col;
+        return $state.$loc.col;
       }
     }
     const state = {
@@ -31,7 +31,7 @@ const redesParser = function Redes() {
       pos: 0,
       $: $state
     }
-    var res = $_start(state);
+    var res = R$START(state);
     if (state.pos!==text.length) {
       throw new Error(`Syntax error at [${$state.$line}:${$state.$col}]: ${text.substr(text,20)}`)
     }
@@ -218,7 +218,7 @@ const redesParser = function Redes() {
   		    return `var R$$_${def.name}; const R$_${def.name}=(S)=>(R$$_${def.name}||(R$$_${def.name}=\n${procDef}))(S)`
         });
         //console.log(ruleDeps)
-        return `${intro||''}\n\n${rules.join('\n')}\nconst $_start=(R$$_${ruleNames[0]}||R$_${ruleNames[0]})`;
+        return `${intro||''}\n\n${rules.join('\n')}\nconst R$START=(R$$_${ruleNames[0]}||R$_${ruleNames[0]})`;
       }
     };
     var curRule;
@@ -309,7 +309,7 @@ const R$$_grammar=R$Q([[R$M(R$$_action),"intro"],[R$$__],[R$P(R$$_def),"defs"]],
 });
 const R$$_proc=R$Q([[R$$_grammar,"grammar"],[R$$__],[R$B(R$D())]],(state,{grammar})=>{return proc(grammar);
 });
-const $_start=(R$$_proc||R$_proc)/*###SPLIT###*/
+const R$START=(R$$_proc||R$_proc)/*###SPLIT###*/
 
   return Parser;
 };

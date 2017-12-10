@@ -78,7 +78,7 @@
   		    return `var R$$_${def.name}; const R$_${def.name}=(S)=>(R$$_${def.name}||(R$$_${def.name}=\n${procDef}))(S)`
         });
         //console.log(ruleDeps)
-        return `${intro||''}\n\n${rules.join('\n')}\nconst $_start=(R$$_${ruleNames[0]}||R$_${ruleNames[0]})`;
+        return `${intro||''}\n\n${rules.join('\n')}\nconst R$START=(R$$_${ruleNames[0]}||R$_${ruleNames[0]})`;
       }
     };
     var curRule;
