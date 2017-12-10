@@ -34,7 +34,18 @@
     font-weight:bold;
     background:#fc8;
   }
-  #grammar-error:empty {
+  #grammar-error, #input-error {
+    padding:8px;
+    font-family:monospace;
+    font-size:14px;
+    color:black;
+    font-weight:normal;
+    background:#ddd;
+  }
+  #grammar-error:empty, #input-error:empty {
+    display:none;
+  }
+  #grammar-msg:empty, #input-msg:empty {
     display:none;
   }
   #input { 
@@ -809,7 +820,11 @@
   exports.Mode = Mode;
   });
   </script><script type="text/javascript" id="dev-js-onload">
+
+  
   window.addEventListener("load",function(){
+  var $=document.querySelector.bind(document);
+  
   var parser;  
   var grammarEditor = ace.edit("grammar");
   grammarEditor.setTheme("ace/theme/cobalt");
@@ -824,21 +839,28 @@
   function grammarChange() {
     var grammar = grammarEditor.getValue();
     try {
+      var now = window.performance.now();
       parser = Redes.Parser(grammar);
+      var ellapsed = window.performance.now() - now;
       inputChange();
-      document.getElementById('grammar-error').innerText='';
+      $('#grammar-msg').innerText=`OK (${ellapsed|0}ms)`;
+      $('#grammar-error').innerText='';
     } catch(error) {
-      document.getElementById('grammar-error').innerText=String(error);
+      $('#grammar-error').innerText=String(error);
     }
   }
   
   function inputChange() {
     var input = inputEditor.getValue();
     try {
+      var now = window.performance.now();
       var result = parser.parse(input);
-      document.getElementById('output').innerHTML = JSON.stringify(result,null,2)
+      var ellapsed = window.performance.now() - now;
+      $('#output').innerHTML = JSON.stringify(result,null,2)
+      $('#input-msg').innerText=`OK (${ellapsed|0}ms)`;
+      $('#input-error').innerText='';
     } catch(error) {
-      document.getElementById('input-error').innerText=String(error);
+      $('#input-error').innerText=String(error);
     }
   }
   
@@ -849,7 +871,7 @@
   var grammarDecreaseFontSize = _.throttle(function() {
       grammarEditor.setFontSize(grammarEditor.getFontSize()-1);
   },200);
-  document.getElementById('grammar').addEventListener('mousewheel', function(e) {
+  $('#grammar').addEventListener('mousewheel', function(e) {
     if(e.ctrlKey) {
       e.preventDefault();
       e.stopPropagation();
@@ -887,9 +909,11 @@
   _ "whitespace"
     = [ \t\n\r]*</div>
   <div id="grammar-error"></div>
+  <div id="grammar-msg"></div>
   </div>
   <div id="right">  
   <div id="input">2*4</div>
+  <div id="input-msg"></div>
   <div id="input-error"></div>
   <pre id="output">
     

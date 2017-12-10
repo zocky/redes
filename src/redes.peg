@@ -249,8 +249,8 @@ special
 / '\\v' { return '\\u000B' }
 / '\\f' { return '\\u000C' }
 / '\\r' { return '\\u000D' }
-/ '\\' d:(hex hex? hex?) { return '\\u'+ d.join('').parseInt(8).toString(16).padStart(4,'0')}
-/ '\\u' u:(hex hex hex hex) { return '\\u'+u.join(''); }
+/ '\\' d:$(hex hex? hex?) { return '\\u'+ d.parseInt(8).toString(16).padStart(4,'0')}
+/ '\\u' u:$(hex hex hex hex) { return '\\u'+u; }
 / '\\\\'
 
 
