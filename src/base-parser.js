@@ -55,11 +55,10 @@ module.exports = function Redes() {
     var res = R$START(state);
     if (state.pos !== text.length) {
       var parsedText = state.text.slice(0,state.max_pos);
-      var line = parsedText.match(/\n/g).length+1;
+      var m = parsedText.match(/\n/g).length;
+      var line = m ? m.length + 1 : 1;
       var col = parsedText.length - parsedText.lastIndexOf("\n");
-      var found = JSON.stringify(state.text.substr(S.max_pos,8));
-      var lines = state.text.slice(0,state.max_pos).split(/\n/);
-      var line = lines.length, column=lines.pop().length+1;
+      var found = JSON.stringify(state.text.substr(state.max_pos,8));
       throw new Error(`Syntax error at line ${line}, column ${col}]. Found ${found}, expected one of ${state.expected}`)
     }
     return res[0];
