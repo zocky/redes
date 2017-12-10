@@ -43,7 +43,7 @@ const redesParser = function Redes() {
   const R$X = (expect,child) => {
     return (S) => {
       var res=child;
-      if (res) {
+      if (res && S.pos > S.expect_pos) {
         S.expected = [];
         S.expect_pos = S.pos
       } else {
