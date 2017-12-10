@@ -106,7 +106,7 @@ pre {
   left:0;
   right:0;
   height:40px;
-  background:#444;
+  background:#044;
   color:white;
   border-bottom:solid 1px white;
 }
@@ -115,4 +115,22 @@ h1 {
   font-size:24px;
   margin:0;
   padding:5px 7px;
+}
+
+#links {
+  position:absolute;
+  top:0;
+  right:0;
+  padding:6px 4px;
+}
+
+#links a {
+  display:inline-block;
+  border:solid 1px #ccc;
+  color:#333;
+  text-decoration:none;
+  padding:4px 12px 4px;
+  border-radius:6px;
+  background:#ddd;
+  font-size:14px;
 }
