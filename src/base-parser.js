@@ -54,7 +54,7 @@ module.exports = function Redes() {
     }
     var res = R$START(state);
     if (state.pos !== text.length) {
-      var lines = state.text.slice(0,state.max_pos);
+      var lines = state.text.slice(0,state.max_pos).split(/\n/);
       var line = lines.length, column=lines.pop().length+1;
       throw new Error(`Syntax error at line ${line}, column ${column}]. Found ${text.substr(S.max_pos,10).split(/\s/).shift()}, expected one of ${state.expected}`)
     }
