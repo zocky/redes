@@ -2867,7 +2867,7 @@ const redesBase = function Redes() {
       }
     }
     const state = {
-      expected: [],
+      expected: {},
       expecting: false,
       expect_pos: 0,
       max_pos: 0,
@@ -2880,10 +2880,11 @@ const redesBase = function Redes() {
     var res = R$START(state);
     if (state.pos !== text.length) {
       var parsedText = state.text.slice(0,state.max_pos);
-      var m = parsedText.match(/\n/g).length;
+      var m = parsedText.match(/\n/g);
       var line = m ? m.length + 1 : 1;
       var col = parsedText.length - parsedText.lastIndexOf("\n");
       var found = JSON.stringify(state.text.substr(state.max_pos,8));
+      var expected = Object.keys(state.expected);
       throw new Error(`Syntax error at line ${line}, column ${col}]. Found ${found}, expected one of ${state.expected}`)
     }
     return res[0];
@@ -2897,13 +2898,13 @@ const redesBase = function Redes() {
       S.expecting = false;
       if (res) {
         if (S.pos > S.max_pos) {
-          S.expected = [];
+          S.expected = {};
           S.max_pos = S.pos;
         }
         return res;
       } else {
         if (S.pos === S.max_pos) {
-          S.expected.push(expect);
+          S.expected[expect]=true;
         }
         return false;
       }
@@ -2915,13 +2916,13 @@ const redesBase = function Redes() {
     if (test) {
       S.pos += len;
       if (S.pos > S.max_pos) {
-        S.expected = [];
+        S.expected = {};
         S.max_pos = S.pos;
       }
       return [res];
     } else {
       if (S.pos === S.max_pos) {
-        S.expected.push(expect);
+        S.expected[expect]=true;
       }
       return false;
     }
