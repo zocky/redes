@@ -30,7 +30,7 @@
 
       grammarEditor.on('change', _.debounce(grammarChange, 400));
       inputEditor.on('change', _.debounce(inputChange, 400));
-      grammarChange();
+      //grammarChange();
 
       function grammarChange() {
         var grammar = grammarEditor.getValue();
